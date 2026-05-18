@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NBTI 职场人格测试</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <header class="header">
+    <h1>NBTI</h1>
+    <p>职场人格测试 · 专治各种职场不服</p>
+  </header>
+  <button class="theme-toggle" id="theme-toggle" title="切换主题">
+    <span class="theme-icon" id="theme-icon">🌙</span>
+  </button>
+  
+  <!-- Welcome Page -->
+  <div class="page active" id="page-welcome">
+    <div class="welcome">
+      <div class="emoji">🎭</div>
+      <h2>你的职场DNA动了吗？</h2>
+      <p>20道题，测出你在职场的真实人格。<br>准备好接受灵魂拷问了吗？</p>
+      <button class="btn btn-primary" onclick="startTest()">
+        开始测试 →
+      </button>
+    </div>
+  </div>
+  
+  <!-- Test Page -->
+  <div class="page" id="page-test">
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progress-text">第 0 题</div>
+    </div>
+    
+    <div id="question-area">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 12px;">正在加载...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Result Page -->
+  <div class="page" id="page-result">
+    <div class="result" id="result-area">
+      <!-- 结果内容 -->
+    </div>
+  </div>
+  
+  <footer class="footer">
+    <p>由 <a href="#">NBTI</a> 提供 · 专治各种职场不服</p>
+  </footer>
+</div>
+
+<script src="avatar-generator.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

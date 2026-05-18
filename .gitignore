@@ -1,0 +1,59 @@
+# --- 运行时生成 ---
+logs/
+*.log
+
+# --- 敏感信息 / API 密钥 ---
+data/config.json
+.env
+.env.local
+*.secret
+
+# --- 运行时数据 ---
+data/conversations/
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+
+# --- 编辑器 / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-*
+.history/
+.trae/
+.deepseek/
+
+# --- 临时文件 ---
+*.tmp
+*.temp
+*.bak
+
+# --- 测试缓存 ---
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+tests/__pycache__/
+tests/browser/
+tests/logs/
+tests/screenshots/
+tests/e2e/screenshots/

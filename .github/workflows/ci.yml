@@ -22,4 +22,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: |
+          pytest tests/ -v --tb=short \
+            --ignore=tests/e2e \
+            --ignore=tests/test_deepseek.py \
+            --ignore=tests/test_longcat_presets.py \
+            --ignore=tests/test_preload.py

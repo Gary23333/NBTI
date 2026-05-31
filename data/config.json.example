@@ -1,0 +1,85 @@
+{
+  "llm_profiles": [
+    {
+      "name": "LongCat",
+      "vendor": "longcat",
+      "base_url": "https://api.longcat.chat",
+      "model": "LongCat-Flash-Chat",
+      "api_key": "YOUR_API_KEY_HERE",
+      "temperature": 0.7,
+      "max_tokens": 8000,
+      "thinking": {
+        "type": "disabled"
+      },
+      "json_mode": {
+        "enabled": true
+      }
+    },
+    {
+      "name": "DeepSeek V4 Flash",
+      "vendor": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-v4-flash",
+      "api_key": "YOUR_API_KEY_HERE",
+      "temperature": 0.7,
+      "max_tokens": 8000,
+      "thinking": {
+        "type": "enabled"
+      },
+      "json_mode": {
+        "enabled": true
+      }
+    },
+    {
+      "name": "Doubao Mini",
+      "vendor": "doubao",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "model": "doubao-seed-2-0-mini-260428",
+      "api_key": "YOUR_API_KEY_HERE",
+      "temperature": 0.9,
+      "max_tokens": 2000,
+      "thinking": {
+        "type": "disabled"
+      },
+      "json_mode": {
+        "enabled": true
+      }
+    },
+    {
+      "name": "LM Studio Local",
+      "vendor": "lmstudio",
+      "base_url": "http://localhost:1234",
+      "model": "your-local-model",
+      "api_key": "lm-studio",
+      "temperature": 0.55,
+      "max_tokens": 1200,
+      "thinking": {
+        "type": "disabled"
+      },
+      "json_mode": {
+        "enabled": true
+      }
+    }
+  ],
+  "active_profile": "LongCat",
+  "phase_profiles": {
+    "init": "LongCat",
+    "assess": "LongCat",
+    "result": "DeepSeek V4 Flash"
+  },
+  "active_preset": "暴躁老油条",
+  "prompt_presets": {},
+  "prompt_init": "",
+  "prompt_assess": "",
+  "prompt_result": "",
+  "min_questions": 20,
+  "max_questions": 25,
+  "easter_egg_enabled": true,
+  "easter_eggs": {
+    "schrodinger": 1,
+    "hexagon": 3,
+    "buddha": 3,
+    "double": 3,
+    "mouthpiece": 5
+  }
+}

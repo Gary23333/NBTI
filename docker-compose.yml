@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  nbti:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NBTI_API_KEY_LONGCAT=${NBTI_API_KEY_LONGCAT:-}
+      - NBTI_API_KEY_DEEPSEEK_V4_FLASH=${NBTI_API_KEY_DEEPSEEK_V4_FLASH:-}
+      - NBTI_API_KEY_DOUBAO=${NBTI_API_KEY_DOUBAO:-}
+    restart: unless-stopped

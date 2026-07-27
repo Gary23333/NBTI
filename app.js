@@ -32,6 +32,42 @@ const STYLE_EMOJIS = {
   '官方MBTI': '🧠'
 };
 
+// 9 主题分组：核心 3 主题 + 热门 6 主题（热门主题带 NEW 角标）
+const CORE_THEME_IDS = ['workplace', 'animal', 'color'];
+const NEW_THEME_IDS = ['love', 'social', 'mbti', 'brainhol', 'money', 'spirit'];
+
+// 主题信息兜底表（API 不可用时保证 9 主题可渲染/可选择）
+const THEME_INFO_MAP = {
+  workplace: { id: 'workplace', name: '职场人格', icon: '💼', description: '经典职场人格测试，16种职场角色定位' },
+  animal: { id: 'animal', name: '动物系人格', icon: '🐾', description: '你是哪种动物？揭秘你的野性人格' },
+  color: { id: 'color', name: '色彩人格', icon: '🎨', description: '你的灵魂是什么颜色？色彩心理学测试' },
+  love: { id: 'love', name: '恋爱人格', icon: '💕', description: '你在恋爱中是什么类型？揭秘你的爱情模式' },
+  social: { id: 'social', name: '社交人格', icon: '👥', description: '你是社牛还是社恐？社交场合真实的你' },
+  mbti: { id: 'mbti', name: '官方MBTI', icon: '🧠', description: '经典16型人格测试，权威心理学视角' },
+  brainhol: { id: 'brainhol', name: '脑洞人格', icon: '🤯', description: '奇葩脑洞测试，你的脑回路有多清奇' },
+  money: { id: 'money', name: '搞钱人格', icon: '💰', description: '你的财富观是哪种流派？揭秘你的搞钱体质' },
+  spirit: { id: 'spirit', name: '精神状态检测', icon: '🔋', description: '当代年轻人精神图鉴，测测你的精神电量' }
+};
+
+// 主题选择卡片专属色（取自各主题 primary 色）
+const THEME_CARD_COLORS = {
+  workplace: '#2563EB',
+  animal: '#059669',
+  color: '#8B5CF6',
+  love: '#EC4899',
+  social: '#F97316',
+  mbti: '#6366F1',
+  brainhol: '#A855F7',
+  money: '#F59E0B',
+  spirit: '#7C3AED'
+};
+
+function getThemeInfo(themeId) {
+  const fromList = themesList.find(t => t.id === themeId);
+  if (fromList) return { id: fromList.id, name: fromList.name, icon: fromList.icon };
+  return THEME_INFO_MAP[themeId] || THEME_INFO_MAP.workplace;
+}
+
 async function loadConfig() {
   if (configLoaded) return;
   configLoaded = true;
@@ -55,9 +91,12 @@ async function loadThemesAndStyles() {
     stylesList = await stylesResp.json();
     renderThemeGrid();
   } catch (e) {
-    themesList = [
-      { id: 'workplace', name: '职场人格', description: '经典职场人格测试，16种职场角色定位', icon: '💼' }
-    ];
+    themesList = Object.keys(THEME_INFO_MAP).map(id => ({
+      id,
+      name: THEME_INFO_MAP[id].name,
+      icon: THEME_INFO_MAP[id].icon,
+      description: THEME_INFO_MAP[id].description
+    }));
     stylesList = ['暴躁老油条'];
     renderThemeGrid();
   }
@@ -67,22 +106,36 @@ function renderThemeGrid() {
   const grid = document.getElementById('theme-grid');
   if (!grid) return;
 
-  const supportedThemes = ['workplace', 'animal', 'color'];
-
-  grid.innerHTML = themesList.map(theme => {
-    const isSupported = supportedThemes.includes(theme.id);
+  const renderCard = (theme) => {
     const isSelected = theme.id === selectedTheme;
+    const isNew = NEW_THEME_IDS.includes(theme.id);
+    const accent = THEME_CARD_COLORS[theme.id];
     return `
-      <div class="theme-card ${isSelected ? 'selected' : ''}" 
+      <div class="theme-card ${isSelected ? 'selected' : ''}"
            data-theme-id="${theme.id}"
-           ${isSupported ? 'onclick="selectTheme(\'' + theme.id + '\')"' : ''}>
-        ${!isSupported ? '<span class="theme-coming-soon">敬请期待</span>' : ''}
+           ${accent ? `style="--card-accent:${accent}"` : ''}
+           onclick="selectTheme('${theme.id}')">
+        ${isNew ? '<span class="theme-new-badge">NEW</span>' : ''}
         <span class="theme-icon">${theme.icon}</span>
         <div class="theme-name">${escHtml(theme.name)}</div>
         <div class="theme-desc">${escHtml(theme.description)}</div>
       </div>
     `;
-  }).join('');
+  };
+
+  const knownIds = [...CORE_THEME_IDS, ...NEW_THEME_IDS];
+  const pickThemes = ids => ids.map(id => themesList.find(t => t.id === id)).filter(Boolean);
+  const coreThemes = pickThemes(CORE_THEME_IDS);
+  const hotThemes = [...pickThemes(NEW_THEME_IDS), ...themesList.filter(t => !knownIds.includes(t.id))];
+
+  let html = '';
+  if (coreThemes.length) {
+    html += `<div class="theme-group-title">核心主题</div>${coreThemes.map(renderCard).join('')}`;
+  }
+  if (hotThemes.length) {
+    html += `<div class="theme-group-title">热门主题</div>${hotThemes.map(renderCard).join('')}`;
+  }
+  grid.innerHTML = html;
 }
 
 function selectTheme(themeId) {
@@ -537,9 +590,19 @@ function showPage(pageId) {
   }
 }
 
+let startInFlight = false;
+
 async function startTest() {
-  showPage('page-test');
-  await sendMessage('开始测试');
+  // 防重复进入：连点“开始测试”会并发发出多个 init 请求，
+  // 产生孤儿会话并浪费 LLM 调用（conversationId 尚未回填时每个请求都会新建会话）
+  if (startInFlight) return;
+  startInFlight = true;
+  try {
+    showPage('page-test');
+    await sendMessage('开始测试');
+  } finally {
+    startInFlight = false;
+  }
 }
 
 let preloadCache = {};
@@ -1311,12 +1374,7 @@ function showResult(answer, tags) {
     interpretation, pseudo_science: pseudoScience, closing
   };
 
-  const themeMap = {
-    workplace: { id: 'workplace', name: '职场人格', icon: '💼' },
-    animal: { id: 'animal', name: '动物系人格', icon: '🐾' },
-    color: { id: 'color', name: '色彩人格', icon: '🎨' }
-  };
-  const currentThemeInfo = themeMap[selectedTheme] || themeMap.workplace;
+  const currentThemeInfo = getThemeInfo(selectedTheme);
 
   const fmt = (text) => escHtml(text).replace(/\n/g, '<br>');
 
@@ -1367,7 +1425,7 @@ function showResult(answer, tags) {
   drawAvatar('result-avatar', type);
 
   if (window.NBTIRadar) {
-    window.NBTIRadar.renderRadar('radar-chart', scores);
+    window.NBTIRadar.renderRadar('radar-chart', scores, { theme: selectedTheme });
   }
 }
 
@@ -1424,12 +1482,7 @@ function openPosterModal(canvas) {
     });
     document.getElementById('poster-download-btn').addEventListener('click', () => {
       if (window.NBTIPoster && currentResult) {
-        const themeMap = {
-          workplace: { id: 'workplace', name: '职场人格', icon: '💼' },
-          animal: { id: 'animal', name: '动物系人格', icon: '🐾' },
-          color: { id: 'color', name: '色彩人格', icon: '🎨' }
-        };
-        const themeInfo = themeMap[selectedTheme] || themeMap.workplace;
+        const themeInfo = getThemeInfo(selectedTheme);
         window.NBTIPoster.download(currentResult, scores, {
           theme: selectedTheme,
           themeInfo: themeInfo,
@@ -1454,12 +1507,7 @@ async function sharePoster() {
   const btn = document.getElementById('btn-share-poster');
   setBtnLoading(btn, true, '生成中…');
   try {
-    const themeMap = {
-      workplace: { id: 'workplace', name: '职场人格', icon: '💼' },
-      animal: { id: 'animal', name: '动物系人格', icon: '🐾' },
-      color: { id: 'color', name: '色彩人格', icon: '🎨' }
-    };
-    const themeInfo = themeMap[selectedTheme] || themeMap.workplace;
+    const themeInfo = getThemeInfo(selectedTheme);
     const canvas = await window.NBTIPoster.generate(currentResult, scores, {
       theme: selectedTheme,
       themeInfo: themeInfo,
@@ -1482,17 +1530,18 @@ async function copyResultText() {
   const btn = document.getElementById('btn-copy-text');
   setBtnLoading(btn, true, '复制中…');
   try {
-    const themeNameMap = {
-      workplace: '职场人格',
-      animal: '动物人格',
-      color: '色彩人格'
-    };
     const hashtagMap = {
       workplace: ['#人格测试', '#NBTI', '#职场人格'],
       animal: ['#动物人格', '#人格测试', '#NBTI'],
-      color: ['#色彩人格', '#人格测试', '#NBTI']
+      color: ['#色彩人格', '#人格测试', '#NBTI'],
+      love: ['#恋爱人格', '#人格测试', '#NBTI'],
+      social: ['#社交人格', '#人格测试', '#NBTI'],
+      mbti: ['#MBTI', '#16型人格', '#NBTI'],
+      brainhol: ['#脑洞人格', '#人格测试', '#NBTI'],
+      money: ['#搞钱人格', '#人格测试', '#NBTI'],
+      spirit: ['#精神状态检测', '#人格测试', '#NBTI']
     };
-    const themeName = themeNameMap[selectedTheme] || 'NBTI';
+    const themeName = getThemeInfo(selectedTheme).name;
     const hashtags = hashtagMap[selectedTheme] || ['#人格测试', '#NBTI'];
     const text = window.NBTIPoster.generateCopyText(currentResult, themeName, hashtags);
     await copyText(text);
@@ -1554,7 +1603,7 @@ function drawAvatar(elementId, personality) {
     container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-secondary);font-size:0.9rem;">头像生成器加载失败</div>';
     return;
   }
-  container.innerHTML = window.NBTIAvatar.generateSvgAvatar(personality);
+  container.innerHTML = window.NBTIAvatar.generateSvgAvatar(personality, { theme: selectedTheme });
 }
 
 function refreshAvatar() {
@@ -1575,7 +1624,7 @@ function downloadAvatar() {
   const codeEl = document.querySelector('.code');
   const personality = codeEl ? codeEl.textContent.trim() : 'NBTI';
 
-  const svg = window.NBTIAvatar.generateSvgAvatar(personality);
+  const svg = window.NBTIAvatar.generateSvgAvatar(personality, { theme: selectedTheme });
   const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
 

@@ -32,6 +32,8 @@
     buddha: { primary: '#F97316', secondary: '#EA580C', bg: '#FFF7ED', name: '职场活佛', accessories: ['zen', 'lotus', 'yin-yang', 'beads'], effect: 'buddha_light' },
     twoface: { primary: '#1F2937', secondary: '#F9FAFB', bg: '#D1D5DB', name: '职场双面人', accessories: ['mask', 'half-moon', 'moon', 'sunglasses'], effect: 'split' },
     meme_lord: { primary: '#8B5CF6', secondary: '#7C3AED', bg: '#EDE9FE', name: '互联网嘴替', accessories: ['microphone', 'speech', 'keyboard', 'phone'], effect: 'barrage' },
+    double: { primary: '#1F2937', secondary: '#F9FAFB', bg: '#D1D5DB', name: '双面人', accessories: ['mask', 'half-moon', 'moon', 'sunglasses'], effect: 'split' },
+    mouthpiece: { primary: '#8B5CF6', secondary: '#7C3AED', bg: '#EDE9FE', name: '互联网嘴替', accessories: ['microphone', 'speech', 'keyboard', 'phone'], effect: 'barrage' },
     LION: { primary: '#D97706', secondary: '#92400E', bg: '#FEF3C7', name: '狮王', accessories: ['crown', 'flame', 'star', 'trophy'], effect: 'golden', animal: 'lion' },
     FOX: { primary: '#EA580C', secondary: '#9A3412', bg: '#FFF7ED', name: '灵狐', accessories: ['lightning', 'brain', 'target', 'star'], animal: 'fox' },
     OWL: { primary: '#78350F', secondary: '#451A03', bg: '#FEF3C7', name: '智者猫头鹰', accessories: ['book', 'glasses-round', 'zen', 'magnifier'], animal: 'owl' },
@@ -55,6 +57,110 @@
   };
 
   const EASTER_EGG_EFFECTS = ['rainbow', 'glow', 'glitch'];
+
+  const EGG_KEYS = ['schrodinger', 'hexagon', 'buddha', 'twoface', 'double', 'meme_lord', 'mouthpiece'];
+
+  const MBTI_CODES = ['ISTJ', 'ISFJ', 'INFJ', 'INTJ', 'ISTP', 'ISFP', 'INFP', 'INTP', 'ESTP', 'ESFP', 'ENFP', 'ENTP', 'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ'];
+
+  // 新主题头像配置：复用人类头像管线，按主题 colors + 维度字母映射配饰/发色/特效。
+  // dimAccessories 按人格代码 4 个字母逐位取配饰池，16 个类型各自有独特组合且每次随机。
+  const THEME_AVATAR_PROFILES = {
+    love: {
+      name: '恋爱人格',
+      primary: '#EC4899', secondary: '#F43F5E', bg: '#FCE7F3',
+      effect: 'glow',
+      hairColors: ['rgb(80,40,60)', 'rgb(120,60,80)', '#9F1239', '#EC4899', 'rgb(44,34,43)'],
+      dimAccessories: {
+        N: ['flame', 'lightning'], S: ['coffee', 'book'],
+        B: ['sunglasses', 'wind'], H: ['heart', 'balloon'],
+        T: ['scales', 'brain'], F: ['flower', 'music'],
+        I: ['gift', 'crown'], P: ['wind', 'cloud']
+      },
+      commonAccessories: ['heart', 'sparkle']
+    },
+    social: {
+      name: '社交人格',
+      primary: '#F97316', secondary: '#06B6D4', bg: '#FFF7ED',
+      effect: 'barrage',
+      hairColors: ['rgb(44,34,43)', 'rgb(120,84,60)', '#EA580C', '#0EA5E9', 'rgb(0,0,0)'],
+      dimAccessories: {
+        N: ['megaphone', 'confetti'], S: ['book', 'quiet-face'],
+        B: ['shield', 'mask'], H: ['heart', 'tea'],
+        T: ['brain', 'calculator'], F: ['confetti', 'music'],
+        I: ['microphone', 'crown'], P: ['music', 'balloon']
+      },
+      commonAccessories: ['speech', 'balloon']
+    },
+    mbti: {
+      name: '官方MBTI',
+      primary: '#6366F1', secondary: '#8B5CF6', bg: '#E0E7FF',
+      hairColors: ['rgb(0,0,0)', 'rgb(44,34,43)', 'rgb(80,68,68)', '#4F46E5', 'rgb(128,128,128)'],
+      dimAccessories: {
+        E: ['megaphone', 'confetti'], I: ['book', 'coffee'],
+        S: ['magnifier', 'clipboard'], N: ['sparkle', 'globe'],
+        T: ['brain', 'scales'], F: ['heart', 'flower'],
+        J: ['clipboard', 'check'], P: ['wind', 'gamepad']
+      },
+      commonAccessories: ['target', 'brain']
+    },
+    brainhol: {
+      name: '脑洞人格',
+      primary: '#A855F7', secondary: '#22D3EE', bg: '#F3E8FF',
+      effect: 'glitch',
+      hairColors: ['#A855F7', '#22D3EE', '#EC4899', 'rgb(44,34,43)', '#FACC15'],
+      dimAccessories: {
+        N: ['atom', 'plane'], S: ['home', 'coffee'],
+        B: ['question', 'mist'], H: ['check', 'quiet-face'],
+        T: ['lightning', 'gear'], F: ['cloud', 'music'],
+        I: ['flame', 'beaker'], P: ['moon', 'clock']
+      },
+      commonAccessories: ['brain', 'sparkle']
+    },
+    money: {
+      name: '搞钱人格',
+      primary: '#F59E0B', secondary: '#D97706', bg: '#FEF3C7',
+      effect: 'golden',
+      hairColors: ['rgb(44,34,43)', '#B45309', '#D97706', 'rgb(0,0,0)', 'rgb(120,84,60)'],
+      dimAccessories: {
+        N: ['lightning', 'flame'], S: ['shield', 'home'],
+        B: ['sword', 'briefcase'], H: ['home', 'gift'],
+        T: ['calculator', 'chart'], F: ['sparkle', 'confetti'],
+        I: ['chart-up', 'trophy'], P: ['clock', 'gamepad']
+      },
+      commonAccessories: ['coin', 'crown']
+    },
+    spirit: {
+      name: '精神状态检测',
+      primary: '#7C3AED', secondary: '#0EA5E9', bg: '#EDE9FE',
+      hairColors: ['#7C3AED', '#0EA5E9', 'rgb(44,34,43)', 'rgb(128,128,128)', '#FB7185'],
+      dimAccessories: {
+        N: ['lightning', 'sun'], S: ['moon', 'cloud'],
+        B: ['shield', 'zen'], H: ['heart', 'mist'],
+        T: ['brain', 'magnifier'], F: ['cloud', 'music'],
+        I: ['clock', 'check'], P: ['question', 'wind']
+      },
+      commonAccessories: ['battery', 'speech']
+    }
+  };
+
+  function buildThemeAvatarConfig(profile, personality) {
+    const code = String(personality || '').toUpperCase();
+    const accessories = [];
+    for (let i = 0; i < 4 && i < code.length; i++) {
+      const pool = profile.dimAccessories && profile.dimAccessories[code[i]];
+      if (pool && pool.length) accessories.push(pick(pool));
+    }
+    (profile.commonAccessories || []).forEach(item => accessories.push(item));
+    return {
+      primary: profile.primary,
+      secondary: profile.secondary,
+      bg: profile.bg,
+      name: code || profile.name,
+      effect: profile.effect,
+      hairColors: profile.hairColors,
+      accessories
+    };
+  }
 
   const LABEL_ACCESSORY = {
     金丝眼镜: 'glasses-gold', 圆框眼镜: 'glasses-round', 银框眼镜: 'glasses-silver', 老花镜: 'glasses-round', 墨镜: 'sunglasses', 护目镜: 'goggles',
@@ -729,6 +835,8 @@
         if (type === 'helmet') return `<path d="M-11 2a11 11 0 0 1 22 0v4h-22z" fill="${p.gold}" stroke="${line}" stroke-width="1.1"/><path d="M0-9v11M-12 5h24" stroke="${line}" stroke-width="1"/>`;
         if (type === 'straw-hat') return `<ellipse cx="0" cy="4" rx="14" ry="4" fill="${p.gold}" stroke="${line}" stroke-width="1"/><path d="M-7 4c1-9 13-9 14 0z" fill="${p.gold}" stroke="${line}" stroke-width="1"/>`;
         return `<path d="M-10 1c2-9 18-9 20 0v4h-20z" fill="${fill}" stroke="${line}" stroke-width="1.1"/><path d="M4 4h10c-2 4-8 4-12 1" fill="${fill}" stroke="${line}" stroke-width="1"/>`;
+      case 'battery':
+        return `<rect x="-11" y="-6" width="20" height="13" rx="3" fill="${light}" stroke="${line}" stroke-width="1.2"/><rect x="9.5" y="-2" width="3.5" height="5" rx="1" fill="${line}"/><rect x="-8" y="-3" width="${rand(5, 12).toFixed(1)}" height="7" rx="1.5" fill="${p.green}"/><path d="M-1-4l-3.5 5h3l-2 5.5 6-7h-3l2-3.5z" fill="${p.gold}" stroke="${line}" stroke-width=".6" stroke-linejoin="round"/>`;
       case 'badge':
       case 'armband':
       case 'formula':
@@ -782,7 +890,11 @@
   }
 
   function generateSvgAvatar(personality = 'NBTI', options = {}) {
-    const theme = getTheme(personality, options);
+    const isEgg = EGG_KEYS.includes(String(personality || '').toLowerCase());
+    let themeId = options && options.theme;
+    if (!themeId && MBTI_CODES.includes(String(personality || '').toUpperCase())) themeId = 'mbti';
+    const profile = themeId ? THEME_AVATAR_PROFILES[themeId] : null;
+    const theme = (profile && !isEgg) ? buildThemeAvatarConfig(profile, personality) : getTheme(personality, options);
     const size = options.size || 200;
     const uid = `av_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const isAnimal = !!theme.animal;
@@ -807,7 +919,8 @@
       lp = pupil(eyes.left.contour);
       rp = pupil(eyes.right.contour);
       const useRainbowHair = theme.effect === 'rainbow' || Math.random() > 0.88;
-      hairColor = personality === 'hexagon' ? '#D97706' : (personality === 'twoface' ? `url(#splitHair_${uid})` : (useRainbowHair ? `url(#rainbow_${uid})` : pick(naturalHairColors)));
+      const isSplitHair = personality === 'twoface' || personality === 'double';
+      hairColor = personality === 'hexagon' ? '#D97706' : (isSplitHair ? `url(#splitHair_${uid})` : (useRainbowHair ? `url(#rainbow_${uid})` : (theme.hairColors ? pick(theme.hairColors) : pick(naturalHairColors))));
       hairs = generateHair(face.points);
       mouth = mouthShape(face.height, face.width);
     }
@@ -949,6 +1062,7 @@
     themes: DEFAULT_THEMES,
     animalTypes: ANIMAL_TYPES,
     colorTypes: COLOR_TYPES,
+    themeProfiles: THEME_AVATAR_PROFILES,
     generateSvgAvatar
   };
 })();

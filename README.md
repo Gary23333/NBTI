@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/v3.0-终极升级版-ff69b4?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/7-测试主题-blueviolet?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/v4.0-全民升级版-ff69b4?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/9-测试主题-blueviolet?style=for-the-badge" />
   <img src="https://img.shields.io/badge/7-吐槽风格-FFD700?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/41-程序化头像-00C853?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/137-头像组合-00C853?style=for-the-badge" />
   <img src="https://img.shields.io/badge/AI-Powered-blueviolet?style=for-the-badge" />
   <img src="https://img.shields.io/badge/LLMs-4%20Vendors-ff69b4?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Streaming-SSE-success?style=for-the-badge" />
@@ -14,23 +14,23 @@
 </p>
 
 <h1 align="center">
-  NBTI · 牛比体 v3.0
+  NBTI · 牛比体 v4.0
   <br/>
-  <sub>🎊 终极升级版 🎊</sub>
+  <sub>🎊 全民升级版 🎊</sub>
   <br/>
-  <sub>Your Personality, Roasted by AI × 7 Themes</sub>
+  <sub>Your Personality, Roasted by AI × 9 Themes</sub>
   <br/>
-  <sub>专治各种不服 · 7大主题任你选</sub>
+  <sub>专治各种不服 · 9大主题任你选</sub>
 </h1>
 
 <p align="center">
-  <i>Not another personality test. This one has attitude. And 7 themes. And animal CP compatibility.</i>
+  <i>Not another personality test. This one has attitude. And 9 themes. And animal CP compatibility.</i>
   <br/>
-  <i>不是又一个山寨测试。这个有脾气，有7大主题，还有动物CP合盘。</i>
+  <i>不是又一个山寨测试。这个有脾气，有9大主题，还有动物CP合盘。</i>
 </p>
 
 <p align="center">
-  <a href="#v30-新亮点--whats-new-in-v30">v3.0 新亮点</a> ·
+  <a href="#v40-新亮点--whats-new-in-v40">v4.0 新亮点</a> ·
   <a href="#quick-start--快速开始">Quick Start</a> ·
   <a href="#the-flex--功能特性">Features</a> ·
   <a href="#tech-stack--技术栈">Tech Stack</a> ·
@@ -42,24 +42,26 @@
 
 ---
 
-## 🎉 v3.0 新亮点 / What's New in v3.0
+## 🎉 v4.0 新亮点 / What's New in v4.0
 
-> **EN** — The Ultimate Upgrade is here! 7 test themes, 7 roast styles, 41 procedural avatars, brand-new 2026 UI, themed share posters, and animal CP compatibility readings.
+> **EN** — The All-Theme Upgrade is here! All 9 test themes fully unlocked (incl. brand-new 💰 Money & 🔋 Spirit meme themes), dynamic prompt system with 7 roast styles × 9 themes = 63 combos, 137 procedural avatar combos, and themed posters / radar / CP compatibility across every theme.
 
-> **CN** — 终极升级版来了！7大测试主题、7种吐槽风格、41种程序化头像、2026全新UI、多主题海报、动物CP合盘。
+> **CN** — 全民升级版来了！9大测试主题全量开放（新增💰搞钱、🔋精神状态两个梗向热门主题）、动态Prompt系统、7种吐槽风格×9主题=63种玩法、137种程序化头像组合、海报/雷达图/合盘全主题适配。
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎯 7 大测试主题
+### 🎯 9 大测试主题（全量开放）
 - **💼 职场人格** — 经典16种职场角色（核心）
 - **🐾 动物系人格** — 你是哪种动物？揭秘野性人格（核心）
 - **🎨 色彩人格** — 你的灵魂是什么颜色？色彩心理学（核心）
-- **💕 恋爱人格** — 你的爱情模式是什么？*更多主题持续更新*
-- **👥 社交人格** — 社牛还是社恐？*更多主题持续更新*
-- **🧠 官方MBTI** — 经典16型心理学视角 *更多主题持续更新*
-- **🤯 脑洞人格** — 你的脑回路有多清奇？*更多主题持续更新*
+- **💕 恋爱人格** — 你的爱情模式是什么？（完整开放）
+- **👥 社交人格** — 社牛还是社恐？（完整开放）
+- **🧠 官方MBTI** — 经典16型心理学视角（完整开放）
+- **🤯 脑洞人格** — 你的脑回路有多清奇？（完整开放）
+- **💰 搞钱人格** — 你的搞钱体质有多强？🆕
+- **🔋 精神状态检测** — 当代人精神状态大起底 🆕
 
 ### 🎭 7 种吐槽风格
 - 🔥 暴躁老油条（经典损友）
@@ -71,18 +73,19 @@
 - 📊 官方MBTI（专业中立）
 
 ### 🖼️ 多主题海报 & 动物CP合盘
-- 每种主题专属配色海报
+- 9大主题专属配色海报
 - 动物CP配对合盘，专属默契指数
 - 一键分享，朋友圈炫图神器
 
 </td>
 <td width="50%">
 
-### 🤖 41 种程序化头像
+### 🤖 137 种程序化头像组合
 - **16** 种职场人格头像（随机SVG生成）
-- **5** 种彩蛋人格特效头像
+- **5** 种彩蛋人格特效头像（彩蛋特效全主题通用）
 - **12** 种动物系专属头像（狮子/狐狸/猫头鹰/海豚/鹿/猫/狼/企鹅/章鱼/树懒/蝴蝶/熊）
 - **8** 种色彩系光影头像
+- **96** 种新主题动态组合（恋爱/社交/MBTI/脑洞/搞钱/精神 × 16人格，专属配色/发色/配饰/特效映射）
 - 每次刷新都是全新面孔，零图片素材纯代码生成
 
 ### ✨ 2026 全新UI
@@ -93,11 +96,12 @@
 - 更丝滑的交互动效
 
 ### 🚀 其他升级
-- 主题+风格任意组合，49种玩法
+- 动态Prompt系统：判定/分数/场景规则按主题注入，主题+风格任意组合，63种玩法
+- 主题选择页核心/热门分组，热门主题带 NEW 角标
+- 修复6项BUG（含3个500错误、限流器内存泄漏等）
 - 题目选项数量智能调整（2-4个）
 - 更丰富的场景出题逻辑
-- 分享海报自动适配主题配色
-- 合盘海报支持跨主题CP计算
+- 分享海报/雷达图/合盘全主题适配，支持跨主题CP计算
 
 </td>
 </tr>
@@ -164,11 +168,11 @@ docker-compose up -d
 <tr>
 <td width="50%">
 
-### 🎯 Multi-Theme Engine (NEW!)
-7 test themes at launch: Workplace, Animal, Color as core themes; Love, Social, MBTI, Brainhol as work-in-progress (more themes coming soon). Each theme has unique dimensions, 16 personalities, easter eggs, and visual styling.
+### 🎯 Multi-Theme Engine
+9 test themes fully unlocked: Workplace, Animal, Color, Love, Social, MBTI, Brainhol — plus brand-new Money 💰 and Spirit 🔋 meme themes. Each theme has unique dimensions, 16 personalities, easter eggs, and visual styling.
 
 ### 🎭 7 Roast Styles (NEW!)
-Switch between 7 prompt personas at runtime — from sarcastic homie to overbearing CEO, from fortune teller to anime moe. 49 unique theme×style combinations.
+Switch between 7 prompt personas at runtime — from sarcastic homie to overbearing CEO, from fortune teller to anime moe. Dynamic per-theme prompts power 63 unique theme×style combinations.
 
 ### Real AI, Not a Spreadsheet
 No hardcoded branching logic. Every question is **improvised by an LLM** based on your previous answers. Options are 2-4 per question, intelligently matched to scene complexity.
@@ -179,17 +183,17 @@ Hot-swap between **4 vendors** at runtime. Assign different models to different 
 ### Streaming + Preloading Pipeline
 SSE streaming renders responses in real-time. While you're staring at a question, the next one is **already being generated** for all answer branches. Instant transitions.
 
-### 41 Procedural Avatars (NEW!)
-Each personality type across all themes gets a **randomly generated SVG avatar** — unique every time. 16 workplace + 5 easter eggs + 12 animals + 8 colors = 41 type definitions. Zero image assets, pure math.
+### 137 Procedural Avatar Combos
+Each personality type across all 9 themes gets a **randomly generated SVG avatar** — unique every time. 16 workplace + 5 easter eggs + 12 animals + 8 colors + 6 new themes × 16 dynamic combos = 137 combinations. Zero image assets, pure math.
 
 </td>
 <td width="50%">
 
-### 🎯 多主题引擎（全新！）
-首发7大测试主题：职场、动物、色彩为核心主题；恋爱、社交、MBTI、脑洞持续更新中。每个主题有独立维度定义、16种人格、彩蛋人格和视觉风格。
+### 🎯 多主题引擎
+9大测试主题全量开放：职场、动物、色彩、恋爱、社交、MBTI、脑洞，外加全新梗向主题搞钱💰和精神状态🔋。每个主题有独立维度定义、16种人格、彩蛋人格和视觉风格。
 
 ### 🎭 7种吐槽风格（全新！）
-运行时切换7种提示词人设——从暴躁损友到霸道总裁，从玄学大师到二次元萌妹。49种主题×风格组合任你玩。
+运行时切换7种提示词人设——从暴躁损友到霸道总裁，从玄学大师到二次元萌妹。动态Prompt系统按主题注入规则，63种主题×风格组合任你玩。
 
 ### 真 AI，不是 Excel
 没有硬编码的题目分支。每一道题都是大模型根据你的历史回答**即兴生成的**。每道题2-4个选项，智能匹配场景复杂度。
@@ -200,8 +204,8 @@ Each personality type across all themes gets a **randomly generated SVG avatar**
 ### 流式渲染 + 预加载流水线
 SSE 实时渲染每个字。你还在看题，下一题的 4 个分支答案**已经生成好了**。秒级切题，体验丝滑。
 
-### 41种程序化头像（全新！）
-所有主题的每种人格都有**随机生成的SVG头像**——每次都不一样。16职场+5彩蛋+12动物+8色彩=41种类型定义。零图片素材，纯数学生成。
+### 137种程序化头像组合
+所有主题的每种人格都有**随机生成的SVG头像**——每次都不一样。16职场+5彩蛋+12动物+8色彩+6新主题×16动态组合=137种组合。零图片素材，纯数学生成。
 
 </td>
 </tr>
@@ -260,18 +264,20 @@ Installable to home screen (manifest + service worker + icon). Test progress per
 | 职场人格 | 💼 | ✅ 核心主题 | 16种经典职场角色定位 |
 | 动物系人格 | 🐾 | ✅ 核心主题 | 16种动物人格，12种专属动物头像 |
 | 色彩人格 | 🎨 | ✅ 核心主题 | 色彩心理学，8种光影特效头像 |
-| 恋爱人格 | 💕 | 🚧 持续更新 | 揭秘你的爱情模式 |
-| 社交人格 | 👥 | 🚧 持续更新 | 社牛社恐真实鉴定 |
-| 官方MBTI | 🧠 | 🚧 持续更新 | 经典心理学16型 |
-| 脑洞人格 | 🤯 | 🚧 持续更新 | 奇葩脑回路大测试 |
+| 恋爱人格 | 💕 | ✅ 完整开放 | 揭秘你的爱情模式 |
+| 社交人格 | 👥 | ✅ 完整开放 | 社牛社恐真实鉴定 |
+| 官方MBTI | 🧠 | ✅ 完整开放 | 经典心理学16型 |
+| 脑洞人格 | 🤯 | ✅ 完整开放 | 奇葩脑回路大测试 |
+| 搞钱人格 | 💰 | ✅ 热门新主题 | 你的搞钱体质有多强 |
+| 精神状态检测 | 🔋 | ✅ 热门新主题 | 当代人精神状态大起底 |
 
-> More themes coming soon! 更多主题持续更新中...
+> 9大主题全部完整可用：每个主题含 16 人格类型 + 5 彩蛋人格 + 4 维度 + 专属配色 + 出题场景。
 
 ---
 
 ## AI-Generated Avatars / 程序化头像家族
 
-Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar** — no two are ever the same. Every result page is a visual surprise. Total: **41 unique type definitions** across all themes.
+Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar** — no two are ever the same. Every result page is a visual surprise. Total: **137 unique combinations** across all 9 themes.
 
 **Workplace (16 + 5 easter eggs):**
 <p align="center">
@@ -299,6 +305,7 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 | Workplace Human Avatars | 21 (16+5) | Procedural face, hair, eyes, accessories, effects |
 | Animal Head Avatars | 12 | Hand-drawn animal heads (lion, fox, owl, dolphin, deer, cat, wolf, penguin, octopus, sloth, butterfly, bear) |
 | Color Light Avatars | 8 | Rainbow glow, glitch, special color effects |
+| New Theme Avatar Combos | 96 (6×16) | Love / Social / MBTI / Brainhol / Money / Spirit: theme-mapped palettes, hair colors, accessories & effects (glow / barrage / glitch / golden…) |
 
 > **Zero external assets.** No PNGs. No icon fonts. Pure `<svg>` math.
 
@@ -326,7 +333,7 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 │  │  nbti/                                      │     │
 │  │    app.py          Flask app + routes       │     │
 │  │    config.py       Config + LLM profiles    │     │
-│  │    themes.py       7 multi-theme definitions│     │
+│  │    themes.py       9 multi-theme definitions│     │
 │  │    prompts.py      7 style prompt templates │     │
 │  │    llm.py          LLM client + streaming   │     │
 │  │    conversation.py Thread-safe storage      │     │
@@ -350,15 +357,15 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 
 ## Tech Stack / 技术栈
 
-| Layer | Tech | v3.0 Updates |
+| Layer | Tech | v4.0 Updates |
 |-------|------|--------------|
-| Frontend | Vanilla HTML/CSS/JS | 🆕 2026全新UI，主题切换动画，卡片式主题选择 |
-| Backend | Python Flask + SSE streaming | 🆕 多主题引擎，7种风格prompt系统 |
-| Themes System | `nbti/themes.py` | 🆕 7大测试主题定义（3核心+4开发中） |
+| Frontend | Vanilla HTML/CSS/JS | 2026全新UI，主题选择页核心/热门分组+NEW角标 |
+| Backend | Python Flask + SSE streaming | 多主题引擎，动态prompt系统 |
+| Themes System | `nbti/themes.py` | 9大测试主题全量开放（新增搞钱💰/精神状态🔋） |
 | LLMs | Doubao (Volces Ark) · DeepSeek · LM Studio · LongCat | 4 vendors, hot-swappable per phase |
-| Prompt System | `nbti/prompts.py` | 🆕 7种吐槽风格：暴躁老油条/冷面纪录片/戏精闺蜜/霸总文学/玄学算命/二次元萌系/官方MBTI |
+| Prompt System | `nbti/prompts.py` | 7种吐槽风格×9主题=63种玩法，判定/分数/场景规则按主题动态注入 |
 | Output | JSON structured + 4-layer parse fallback | Smart options (2-4 per question) |
-| Avatars | Pure SVG procedural generator | 🆕 41种头像：16职场+5彩蛋+12动物+8色彩 |
+| Avatars | Pure SVG procedural generator | 137种头像组合：16职场+5彩蛋+12动物+8色彩+6新主题×16 |
 | Posters | Canvas poster generator | 🆕 多主题配色海报，动物CP合盘海报 |
 | Compatibility | `compat-data.js` | 🆕 跨主题CP合盘引擎 |
 | Themes | Dark / Light, auto-detect | 🆕 主题联动视觉系统 |
@@ -435,7 +442,7 @@ NBTI/
 ├── server.py              # Backend entry point
 ├── frontend_server.py     # Static file server + API proxy
 ├── app.js                 # Frontend logic (SSE streaming, theme switch, rendering)
-├── avatar-generator.js    # Procedural SVG avatar generator (41 types)
+├── avatar-generator.js    # Procedural SVG avatar generator (137 combos)
 ├── radar-chart.js         # 4-dimension SVG radar chart (theme-aware)
 ├── share-poster.js        # 750×1200 Canvas share/compat poster (multi-theme)
 ├── compat-data.js         # Friend/Animal CP compatibility rule engine
@@ -450,7 +457,7 @@ NBTI/
 ├── nbti/                  # Backend Python package
 │   ├── app.py             # Flask app + all API routes
 │   ├── config.py          # Config management
-│   ├── themes.py          # 🆕 7 multi-theme definitions
+│   ├── themes.py          # 9 multi-theme definitions
 │   ├── prompts.py         # 🆕 7 style prompt templates
 │   ├── llm.py             # LLM client + streaming
 │   ├── conversation.py    # Thread-safe storage
@@ -505,7 +512,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## Changelog / 更新日志
 
-See [CHANGELOG.md](CHANGELOG.md) for release history. Full v3.0 changelog in the changelog file.
+See [CHANGELOG.md](CHANGELOG.md) for release history. Full v4.0 changelog in the changelog file.
 
 ---
 
@@ -528,7 +535,7 @@ copies of the Software...
 ---
 
 <p align="center">
-  <b>NBTI · 牛比体 v3.0</b><br/>
-  <sub>🎊 终极升级版 · 7大主题 · 41种头像 · 你的人格，被AI毒舌了 🎊</sub><br/>
-  <sub>Your personality. Roasted. In 7 ways.</sub>
+  <b>NBTI · 牛比体 v4.0</b><br/>
+  <sub>🎊 全民升级版 · 9大主题 · 137种头像组合 · 你的人格，被AI毒舌了 🎊</sub><br/>
+  <sub>Your personality. Roasted. In 9 ways.</sub>
 </p>

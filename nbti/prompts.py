@@ -1,5 +1,7 @@
 """NBTI 多主题多风格 Prompt 管理模块"""
 
+import re
+
 from nbti.themes import get_theme, THEMES
 
 
@@ -8,73 +10,35 @@ NEW_STYLES = ["霸总文学", "玄学算命", "二次元萌系", "官方MBTI"]
 ALL_STYLES = BASE_STYLES + NEW_STYLES
 
 
-WORKPLACE_QUICK = """NBTI「卷王」— 996是福报，加班是修行
-NBTP「棋手」— 所有人都是我棋盘上的棋子
-NBFI「独狼」— 给我一个需求，还你一个奇迹，别烦我
-NBFP「浪子」— 四海为家，简历比冒险小说精彩
-NHTI「霸总」— 我不是在PUA你，我是为你好
-NHTP「教练」— 我不上赛场，我培养冠军
-NHFI「护犊子」— 天塌了我顶着，动我的人试试
-NHFP「气氛组」— 公司没我早散伙了
-SBTI「工蚁」— 不声不响，但所有灯都是我开的
-SBTP「人形计算器」— 别跟我谈感情，谈数据
-SBFI「螺丝钉」— 最无聊的岗位，最不可替代的人
-SBFP「扫地僧」— 你以为我是青铜，其实我是王者
-SHTI「大管家」— 诸葛亮都没我会统筹
-SHTP「质检警察」— 99.9%就是不及格
-SHFI「居委会大妈」— 有矛盾？来，坐下聊
-SHFP「职场空气」— 我在，但好像又不在"""
+_DIM_KEYS = ["NB", "BH", "TF", "IP"]
 
-ANIMAL_QUICK = """NBTI「东北虎」— 丛林之王，独来独往的顶级猎手
-NBTP「狐狸」— 聪明狡黠，算无遗策的谋略家
-NBFI「雪豹」— 高山隐士，一击致命的独行侠
-NBFP「猎豹」— 速度之王，永远在追逐下一个目标
-NHTI「狮王」— 草原霸主，威严不容置疑的领袖
-NHTP「头狼」— 狼群之首，带领团队走向胜利
-NHFI「棕熊」— 护崽狂魔，谁敢动我的人试试
-NHFP「金毛」— 快乐小狗，团队的气氛担当
-SBTI「工蜂」— 勤勤恳恳，蜂巢的无名英雄
-SBTP「猫头鹰」— 夜视之眼，冷静精准的观察者
-SBFI「树懒」— 慢活大师，与世无争的哲学家
-SBFP「章鱼」— 伪装大师，深藏不露的智者
-SHTI「大象」— 记忆超群，稳重可靠的族长
-SHTP「黑猫」— 完美主义，细节决定一切
-SHFI「海豚」— 治愈系天使，海里的心理医生
-SHFP「水母」— 随波逐流，海洋里的透明精灵"""
 
-COLOR_QUICK = """NBTI「中国红」— 热情似火，天生的领导者
-NBTP「皇家蓝」— 深邃睿智，运筹帷幄的策略家
-NBFI「黑金」— 神秘高贵，不可触碰的存在
-NBFP「橙红」— 活力四射，永远年轻永远热血
-NHTI「酒红」— 成熟霸气，掌控全场的女王
-NHTP「焦糖色」— 温暖治愈，人生导师般的存在
-NHFI「珊瑚粉」— 温柔守护，治愈系小太阳
-NHFP「柠檬黄」— 快乐源泉，走到哪亮到哪
-SBTI「石灰白」— 默默奉献，最可靠的底色
-SBTP「墨黑」— 理性深邃，数据就是一切
-SBFI「奶茶色」— 温柔百搭，最舒服的存在
-SBFP「雾霾蓝」— 文艺复古，有故事的颜色
-SHTI「橄榄绿」— 沉稳务实，靠谱的代言人
-SHTP「藏青」— 严谨细致，零容错的完美主义
-SHFI「豆沙粉」— 善解人意，最好的倾听者
-SHFP「米白」— 佛系随缘，存在感极低的小透明"""
+def _dim_letter(dim, side):
+    """从维度描述中提取代号字母，如 'N(能动)' -> 'N'"""
+    return dim[side][0]
 
-MBTI_QUICK = """ISTJ「检查员」— 认真严谨、负责任的务实者
-ISFJ「保护者」— 温暖体贴、忠于职守的守护者
-INFJ「提倡者」— 富有洞察力、理想主义的引路人
-INTJ「建筑师」— 独立思考、战略导向的规划者
-ISTP「鉴赏家」— 冷静理性、擅长动手的实践者
-ISFP「探险家」— 温和敏感、热爱艺术的体验者
-INFP「调停者」— 理想主义、富同情心的梦想家
-INTP「逻辑学家」— 思辨缜密、追求真理的思考者
-ESTP「企业家」— 精力充沛、行动力强的冒险家
-ESFP「表演者」— 热情外向、活在当下的娱乐者
-ENFP「竞选者」— 充满热情、富有创造力的激励者
-ENTP「辩论家」— 聪明好奇、喜欢挑战的创新者
-ESTJ「总经理」— 务实高效、组织能力强的管理者
-ESFJ「执政官」— 热心友善、善于合作的协调者
-ENFJ「主人公」— 富有魅力、天生的领导者
-ENTJ「指挥官」— 果断自信、战略眼光的领袖"""
+
+def _dim_keyword(dim, side):
+    """从维度描述中提取关键词，如 'N(能动)' -> '能动'"""
+    m = re.search(r"\((.+)\)", dim[side])
+    return m.group(1) if m else dim[side]
+
+
+def _judge_line(theme):
+    """根据主题维度定义生成判定规则行，如 'NB>0→N, NB≤0→S | ...'"""
+    parts = []
+    for i, d in enumerate(theme["dimensions"]):
+        pos = _dim_letter(d, "positive")
+        neg = _dim_letter(d, "negative")
+        parts.append(f"{_DIM_KEYS[i]}>0→{pos}, {_DIM_KEYS[i]}≤0→{neg}")
+    return " | ".join(parts)
+
+
+def _score_rule_lines(theme):
+    """根据主题维度关键词生成分数更新规则"""
+    pos = "/".join(_dim_keyword(d, "positive") for d in theme["dimensions"])
+    neg = "/".join(_dim_keyword(d, "negative") for d in theme["dimensions"])
+    return f"- 偏{pos} → +1到+3\n- 偏{neg} → -1到-3"
 
 
 OPTION_RULES_PART = """## 选项铁律（最重要——违反即不合格）
@@ -103,14 +67,13 @@ OPTION_RULES_PART = """## 选项铁律（最重要——违反即不合格）
 
 
 def get_personality_quick(theme_id):
-    if theme_id == "animal":
-        return "### 16种动物人格速查\n" + ANIMAL_QUICK
-    elif theme_id == "color":
-        return "### 16种色彩人格速查\n" + COLOR_QUICK
-    elif theme_id == "mbti":
-        return "### 16种MBTI类型速查\n" + MBTI_QUICK
-    else:
-        return "### 16种人格速查\n" + WORKPLACE_QUICK
+    """从主题数据动态生成 16 型人格速查表，避免按主题硬编码"""
+    theme = get_theme(theme_id)
+    lines = [
+        f"{t['code']}「{t['name']}」— {t['oneline']}"
+        for t in theme.get("personality_types", [])
+    ]
+    return f"### 16种{theme['name']}速查\n" + "\n".join(lines)
 
 
 def render_template(template, **kwargs):
@@ -139,10 +102,9 @@ def get_base_style_prompts(style_name, theme_id):
 - **场景要多样化**：生活、社交、奇葩、脑洞都可以出！
 
 ### 场景类型（混合出题）
-- **社交类**：朋友聚会、相亲尴尬、微信群聊、前任、社交恐惧
+- **主题类**：围绕当前测试主题的场景（见下方"本主题出题方向"）
 - **生活类**：外卖被偷、快递到了、室友奇葩、租房、生活琐事
-- **脑洞类**：如果xxx会怎样、超能力选择、穿越、奇葩假设
-- **职场类**（如果是workplace主题）：摸鱼被抓、团建社死、领导奇葩要求"""
+- **脑洞类**：如果xxx会怎样、超能力选择、穿越、奇葩假设"""
         result_style = """## 你的风格（核心！）
 - 像脱口秀演员公布投票结果：先铺垫、再爆梗、最后升华
 - 毒舌但温暖，扎心但不伤人
@@ -268,17 +230,26 @@ def get_base_style_prompts(style_name, theme_id):
         scene_style = "场景要有画面感，有趣，多样化。"
         result_style = "给出有趣的解读。"
 
+    # 注入主题出题方向：风格管"怎么说"，主题管"说什么题材"
+    theme_scenes = theme.get("scenes", [])
+    if theme_scenes:
+        scene_style += "\n\n### 本主题出题方向（题材围绕以下方向，不要跑题）\n"
+        scene_style += "\n".join(f"- {s}" for s in theme_scenes)
+
     dim_def = "### 四维度\n"
     for d in theme["dimensions"]:
         dim_def += f"- {d['positive']} vs {d['negative']}\n"
 
-    judge_rule = "## 人格判定规则（内部参考，不要输出给用户）\nNB>0→N, NB≤0→S | BH>0→B, BH≤0→H | TF>0→T, TF≤0→F | IP>0→I, IP≤0→P\n组合四维得到 4 字母人格代码\n\n"
+    judge_line = _judge_line(theme)
+    judge_rule = f"## 人格判定规则（内部参考，不要输出给用户）\n{judge_line}\n组合四维得到 4 字母人格代码\n\n"
 
     return {
         "persona": persona,
         "personality_quick": personality_quick,
         "dim_def": dim_def,
+        "judge_line": judge_line,
         "judge_rule": judge_rule,
+        "score_rules": _score_rule_lines(theme),
         "comment_style": comment_style,
         "init_comment": init_comment,
         "scene_style": scene_style,
@@ -319,7 +290,7 @@ def build_assess_prompt(theme_id, style_name, **kwargs):
 {p['personality_quick']}
 
 ### 人格判定规则
-NB>0→N, NB≤0→S | BH>0→B, BH≤0→H | TF>0→T, TF≤0→F | IP>0→I, IP≤0→P
+{p['judge_line']}
 组合四维得到 4 字母人格代码。你的任务是通过出题和计分，逐步逼近用户的真实人格。
 
 ## 你的任务
@@ -336,8 +307,7 @@ NB>0→N, NB≤0→S | BH>0→B, BH≤0→H | TF>0→T, TF≤0→F | IP>0→I, I
 next_dim 按 NB → BH → TF → IP → NB 循环，或设为 END 结束。
 
 ## 分数更新规则
-- 偏能动/独立/理性/强执行 → +1到+3
-- 偏稳态/合群/感性/灵活 → -1到-3
+{p['score_rules']}
 - 极端选择 → 可±4
 
 ## 出题风格
@@ -375,7 +345,7 @@ def build_result_prompt(theme_id, style_name, **kwargs):
 {p['personality_quick']}
 
 ### 人格代码计算规则
-NB>0→N, NB≤0→S | BH>0→B, BH≤0→H | TF>0→T, TF≤0→F | IP>0→I, IP≤0→P
+{p['judge_line']}
 {easter_text}
 
 {p['result_style']}

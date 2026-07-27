@@ -92,7 +92,7 @@ class ConversationStore:
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return {}
 
     def _write(self, conversation_id, data):

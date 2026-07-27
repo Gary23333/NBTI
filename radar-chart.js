@@ -7,6 +7,65 @@
     { key: 'ip', pos: 'I·强执行', neg: 'P·灵活', dx: -1, dy: 0 }
   ];
 
+  // 9 主题轴标签：分数键统一为 nb/bh/tf/ip，仅标签随主题切换
+  const THEME_AXES = {
+    workplace: AXES,
+    animal: [
+      { key: 'nb', pos: 'N·猎食', neg: 'S·食草', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·独居', neg: 'H·群居', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·冷血', neg: 'F·热血', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·昼行', neg: 'P·夜行', dx: -1, dy: 0 }
+    ],
+    color: [
+      { key: 'nb', pos: 'N·暖色', neg: 'S·冷色', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·纯色', neg: 'H·混色', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·深色', neg: 'F·浅色', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·亮色', neg: 'P·暗色', dx: -1, dy: 0 }
+    ],
+    love: [
+      { key: 'nb', pos: 'N·主动', neg: 'S·被动', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·独立', neg: 'H·依恋', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·理性', neg: 'F·感性', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·承诺', neg: 'P·随缘', dx: -1, dy: 0 }
+    ],
+    social: [
+      { key: 'nb', pos: 'N·外向', neg: 'S·内向', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·边界', neg: 'H·共情', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·逻辑', neg: 'F·情绪', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·主导', neg: 'P·配合', dx: -1, dy: 0 }
+    ],
+    mbti: [
+      { key: 'nb', pos: 'E·外倾', neg: 'I·内倾', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'S·感觉', neg: 'N·直觉', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·思考', neg: 'F·情感', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'J·判断', neg: 'P·感知', dx: -1, dy: 0 }
+    ],
+    brainhol: [
+      { key: 'nb', pos: 'N·外星', neg: 'S·地球', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·深井冰', neg: 'H·正常人', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·神经病', neg: 'F·精神病', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·发病', neg: 'P·潜伏期', dx: -1, dy: 0 }
+    ],
+    money: [
+      { key: 'nb', pos: 'N·狼性', neg: 'S·稳守', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·单干', neg: 'H·抱团', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·精算', neg: 'F·感觉', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·长线', neg: 'P·短线', dx: -1, dy: 0 }
+    ],
+    spirit: [
+      { key: 'nb', pos: 'N·亢奋', neg: 'S·低迷', dx: 0, dy: -1 },
+      { key: 'bh', pos: 'B·内核稳', neg: 'H·易破防', dx: 1, dy: 0 },
+      { key: 'tf', pos: 'T·理智', neg: 'F·感性', dx: 0, dy: 1 },
+      { key: 'ip', pos: 'I·规律', neg: 'P·混乱', dx: -1, dy: 0 }
+    ]
+  };
+
+  function resolveAxes(opts) {
+    if (opts && Array.isArray(opts.axes) && opts.axes.length === 4) return opts.axes;
+    const themeId = opts && opts.theme;
+    return THEME_AXES[themeId] || AXES;
+  }
+
   const DEFAULT_COLORS = {
     accent: '#f472b6',
     text: '#e8e8f0',
@@ -43,6 +102,7 @@
   function getRadarSvg(scores, opts) {
     const size = (opts && opts.size) || 240;
     const colors = resolveColors(opts);
+    const axes = resolveAxes(opts);
     const cx = size / 2;
     const cy = size / 2;
     const r = size / 2 - 56;
@@ -57,25 +117,25 @@
 
     // 网格圈 25% / 50% / 75% / 100%
     [0.25, 0.5, 0.75, 1].forEach(ratio => {
-      svg += `<polygon points="${ptsStr(AXES.map(a => pointAt(a, ratio)))}" fill="none" stroke="${colors.grid}" stroke-width="1"/>`;
+      svg += `<polygon points="${ptsStr(axes.map(a => pointAt(a, ratio)))}" fill="none" stroke="${colors.grid}" stroke-width="1"/>`;
     });
 
     // 轴线 + 中心点
-    AXES.forEach(a => {
+    axes.forEach(a => {
       const [x, y] = pointAt(a, 1);
       svg += `<line x1="${fmt(cx)}" y1="${fmt(cy)}" x2="${fmt(x)}" y2="${fmt(y)}" stroke="${colors.grid}" stroke-width="1"/>`;
     });
     svg += `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="2" fill="${colors.grid}"/>`;
 
     // 数据多边形 + 顶点圆点
-    const dataPoints = AXES.map(a => pointAt(a, normalize(s[a.key])));
+    const dataPoints = axes.map(a => pointAt(a, normalize(s[a.key])));
     svg += `<polygon points="${ptsStr(dataPoints)}" fill="${colors.accent}" fill-opacity="0.2" stroke="${colors.accent}" stroke-width="2" stroke-linejoin="round"/>`;
     dataPoints.forEach(p => {
       svg += `<circle cx="${fmt(p[0])}" cy="${fmt(p[1])}" r="3" fill="${colors.accent}"/>`;
     });
 
     // 轴标签：外端正极（正分方向），内侧负极
-    AXES.forEach(a => {
+    axes.forEach(a => {
       const vertical = a.dx === 0;
       const outSign = vertical ? a.dy : a.dx;
       const anchor = vertical ? 'middle' : (a.dx > 0 ? 'start' : 'end');
@@ -109,6 +169,7 @@
 
   window.NBTIRadar = {
     renderRadar,
-    getRadarSvg
+    getRadarSvg,
+    THEME_AXES
   };
 })();

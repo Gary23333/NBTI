@@ -24,7 +24,7 @@ from nbti.utils import (
     expected_next_question, inject_question_control, is_complete_assess,
     commit_answer_to_history, extract_scene_summary, trim_history
 )
-from nbti.themes import get_themes
+from nbti.themes import get_themes, THEMES
 from nbti.prompts import get_prompt, get_prompt_presets, ALL_STYLES
 
 logger = logging.getLogger(__name__)
@@ -121,6 +121,25 @@ def _invalid_conversation_id(conversation_id):
     return bool(conversation_id) and not is_valid_conversation_id(conversation_id)
 
 
+def _normalize_theme_id(theme_id):
+    """theme 来自客户端/会话文件，不可信：仅接受已知字符串 id，其余回退 workplace。
+    dict/list 等不可哈希值会在 get_prompt 的 `theme_id not in THEMES` 处抛 TypeError。"""
+    if isinstance(theme_id, str) and theme_id in THEMES:
+        return theme_id
+    return 'workplace'
+
+
+def _parse_chat_body(data):
+    """校验聊天端点请求体：必须为 JSON object；message 强制转 str（客户端可伪造任意类型）。
+    非法返回 None（各端点据此返回 400），合法返回 (message, data)"""
+    if not isinstance(data, dict):
+        return None
+    message = data.get('message', '')
+    if not isinstance(message, str):
+        message = str(message)
+    return message, data
+
+
 class _RateLimiter:
     """IP 级滑动窗口限流器（进程内 dict + 锁，仅适配单 worker 部署，见 gunicorn.conf.py）"""
 
@@ -134,6 +153,12 @@ class _RateLimiter:
             return True, 0
         now = time.time()
         with self._lock:
+            # key 只增不删会随独立 IP 数无限膨胀：超阈值时惰性全量驱逐窗口外记录
+            if len(self._hits) > 1000:
+                self._hits = {
+                    k: v for k, v in
+                    ((k, [t for t in v if now - t < window]) for k, v in self._hits.items()) if v
+                }
             hits = [t for t in self._hits.get(key, []) if now - t < window]
             if len(hits) >= limit:
                 retry_after = max(1, int(window - (now - hits[0])) + 1)
@@ -242,8 +267,10 @@ def create_app():
     # ---- Chat endpoints ----
     @app.route('/api/chat', methods=['POST'])
     def chat():
-        data = request.json
-        message = data.get('message', '')
+        parsed_body = _parse_chat_body(request.json)
+        if parsed_body is None:
+            return jsonify({"error": "Invalid JSON body"}), 400
+        message, data = parsed_body
         conversation_id = data.get('conversation_id', '')
         if _invalid_conversation_id(conversation_id):
             logger.warning(f"[CHAT] 非法 conversation_id: {conversation_id!r}")
@@ -265,10 +292,11 @@ def create_app():
         style_name = data.get('style', '暴躁老油条')
         
         if is_new_session:
+            theme_id = _normalize_theme_id(theme_id)
             store.set_theme(conversation_id, theme_id)
             store.set_style(conversation_id, style_name)
         else:
-            theme_id = store.get_theme(conversation_id)
+            theme_id = _normalize_theme_id(store.get_theme(conversation_id))
             style_name = store.get_style(conversation_id)
 
         history = store.get_history(conversation_id)
@@ -313,6 +341,9 @@ def create_app():
         messages.append({"role": "user", "content": message})
 
         profile = find_profile_for_phase(config, phase)
+        if not profile:
+            logger.error(f"[CHAT] 无可用 LLM profile | phase={phase}")
+            return jsonify({"error": "No LLM profile configured", "conversation_id": conversation_id}), 500
 
         headers = {
             "Content-Type": "application/json",
@@ -369,8 +400,10 @@ def create_app():
 
     @app.route('/api/chat/preload', methods=['POST'])
     def preload():
-        data = request.json
-        message = data.get('message', '')
+        parsed_body = _parse_chat_body(request.json)
+        if parsed_body is None:
+            return jsonify({"error": "Invalid JSON body"}), 400
+        message, data = parsed_body
         conversation_id = data.get('conversation_id', '')
         if _invalid_conversation_id(conversation_id):
             logger.warning(f"[PRELOAD] 非法 conversation_id: {conversation_id!r}")
@@ -387,10 +420,10 @@ def create_app():
         expected_q = None
 
         if conversation_id:
-            theme_id = store.get_theme(conversation_id)
+            theme_id = _normalize_theme_id(store.get_theme(conversation_id))
             style_name = store.get_style(conversation_id)
         else:
-            theme_id = data.get('theme', 'workplace')
+            theme_id = _normalize_theme_id(data.get('theme', 'workplace'))
             style_name = data.get('style', '暴躁老油条')
 
         eggs = config.get('easter_eggs', {})
@@ -428,6 +461,9 @@ def create_app():
         messages.append({"role": "user", "content": message})
 
         profile = find_profile_for_phase(config, phase)
+        if not profile:
+            logger.error(f"[PRELOAD] 无可用 LLM profile | phase={phase}")
+            return jsonify({"error": "No LLM profile configured"}), 500
 
         headers = {
             "Content-Type": "application/json",
@@ -490,7 +526,11 @@ def create_app():
         if limited:
             return limited
         data = request.json
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid JSON body"}), 400
         message = data.get('message', '')
+        if not isinstance(message, str):
+            message = str(message)
         conversation_id = data.get('conversation_id', '')
 
         if not conversation_id or not message:

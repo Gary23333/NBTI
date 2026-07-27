@@ -54,6 +54,108 @@
       line: 'rgba(255,255,255,0.08)',
       panel: 'rgba(244,114,182,0.06)',
       radar: { accent: '#f472b6', text: '#fce7f3', textDim: '#f9a8d4', grid: '#3b2450' }
+    },
+    love: {
+      id: 'love',
+      name: '恋爱人格',
+      icon: '💕',
+      bg: '#1a0d14',
+      bgTop: '#251019',
+      bgGlow1: '#ec4899',
+      bgGlow2: '#f43f5e',
+      accent: '#f472b6',
+      accent2: '#fb7185',
+      text: '#fff1f2',
+      textDim: '#e8b4c4',
+      textFaint: '#a37889',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(236,72,153,0.06)',
+      radar: { accent: '#f472b6', text: '#ffe4e6', textDim: '#fda4af', grid: '#4a2434' }
+    },
+    social: {
+      id: 'social',
+      name: '社交人格',
+      icon: '👥',
+      bg: '#14100b',
+      bgTop: '#1f160d',
+      bgGlow1: '#f97316',
+      bgGlow2: '#06b6d4',
+      accent: '#fb923c',
+      accent2: '#22d3ee',
+      text: '#fff7ed',
+      textDim: '#e0c4a8',
+      textFaint: '#a08870',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(249,115,22,0.06)',
+      radar: { accent: '#fb923c', text: '#ffedd5', textDim: '#fdba74', grid: '#453324' }
+    },
+    mbti: {
+      id: 'mbti',
+      name: '官方MBTI',
+      icon: '🧠',
+      bg: '#0e0f1c',
+      bgTop: '#151731',
+      bgGlow1: '#6366f1',
+      bgGlow2: '#8b5cf6',
+      accent: '#818cf8',
+      accent2: '#a78bfa',
+      text: '#eef2ff',
+      textDim: '#b6bce0',
+      textFaint: '#7c81a8',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(99,102,241,0.06)',
+      radar: { accent: '#818cf8', text: '#e0e7ff', textDim: '#a5b4fc', grid: '#2e3160' }
+    },
+    brainhol: {
+      id: 'brainhol',
+      name: '脑洞人格',
+      icon: '🤯',
+      bg: '#130b1c',
+      bgTop: '#1c1029',
+      bgGlow1: '#a855f7',
+      bgGlow2: '#22d3ee',
+      accent: '#c084fc',
+      accent2: '#22d3ee',
+      text: '#faf5ff',
+      textDim: '#d0b3ec',
+      textFaint: '#9378ad',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(168,85,247,0.07)',
+      radar: { accent: '#c084fc', text: '#f3e8ff', textDim: '#d8b4fe', grid: '#3d2653' }
+    },
+    money: {
+      id: 'money',
+      name: '搞钱人格',
+      icon: '💰',
+      bg: '#171208',
+      bgTop: '#211a0b',
+      bgGlow1: '#f59e0b',
+      bgGlow2: '#10b981',
+      accent: '#fbbf24',
+      accent2: '#34d399',
+      text: '#fffbeb',
+      textDim: '#e0cda2',
+      textFaint: '#a08e68',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(245,158,11,0.07)',
+      radar: { accent: '#fbbf24', text: '#fef3c7', textDim: '#fcd34d', grid: '#463a1d' }
+    },
+    spirit: {
+      id: 'spirit',
+      name: '精神状态检测',
+      icon: '🔋',
+      bg: '#100c1a',
+      bgTop: '#181229',
+      bgGlow1: '#7c3aed',
+      bgGlow2: '#0ea5e9',
+      accent: '#a78bfa',
+      accent2: '#38bdf8',
+      text: '#f5f3ff',
+      textDim: '#c2b8e6',
+      textFaint: '#877da8',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(124,58,237,0.07)',
+      radar: { accent: '#a78bfa', text: '#ede9fe', textDim: '#c4b5fd', grid: '#33264d' }
     }
   };
 
@@ -212,7 +314,7 @@
     let avatarImg = null;
     if (window.NBTIAvatar && typeof window.NBTIAvatar.generateSvgAvatar === 'function') {
       try {
-        avatarImg = await svgToImage(window.NBTIAvatar.generateSvgAvatar(r.type));
+        avatarImg = await svgToImage(window.NBTIAvatar.generateSvgAvatar(r.type, { theme: options.theme }));
       } catch (e) { avatarImg = null; }
     }
     ctx.save();
@@ -343,11 +445,11 @@
     return String(type || 'UNKNOWN');
   }
 
-  async function drawCompatAvatar(ctx, type, x, y, size, theme) {
+  async function drawCompatAvatar(ctx, type, x, y, size, theme, avatarTheme) {
     let img = null;
     if (window.NBTIAvatar && typeof window.NBTIAvatar.generateSvgAvatar === 'function') {
       try {
-        img = await svgToImage(window.NBTIAvatar.generateSvgAvatar(type));
+        img = await svgToImage(window.NBTIAvatar.generateSvgAvatar(type, { theme: avatarTheme }));
       } catch (e) { img = null; }
     }
     ctx.save();
@@ -398,8 +500,8 @@
     const ay = 220;
     const leftX = (W - AV * 2 - GAP) / 2;
     const rightX = leftX + AV + GAP;
-    await drawCompatAvatar(ctx, m.type, leftX, ay, AV, theme);
-    await drawCompatAvatar(ctx, t.type, rightX, ay, AV, theme);
+    await drawCompatAvatar(ctx, m.type, leftX, ay, AV, theme, options.theme);
+    await drawCompatAvatar(ctx, t.type, rightX, ay, AV, theme, options.theme);
 
     const badgeX = W / 2;
     const badgeY = ay + AV / 2;

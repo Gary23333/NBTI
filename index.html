@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f0f13">
-<title>NBTI 职场人格测试</title>
+<meta name="theme-color" content="#0a0a0f">
+<title>NBTI · 人格测试宇宙</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="style.css">
@@ -23,28 +23,108 @@ window.addEventListener('load', function () {
 </head>
 <body>
 
+<div class="app-bg">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
 <div class="container">
   <header class="header">
-    <h1>NBTI</h1>
-    <p>职场人格测试 · 专治各种职场不服</p>
+    <div class="header-glow"></div>
+    <h1 class="logo-text">NBTI</h1>
+    <p class="tagline">人格测试宇宙 · 不止职场</p>
   </header>
+
   <button class="theme-toggle" id="theme-toggle" title="切换主题">
     <span class="theme-icon" id="theme-icon">🌙</span>
   </button>
-  
-  <!-- Welcome Page -->
-  <div class="page active" id="page-welcome">
-    <div class="welcome">
-      <div class="emoji">🎭</div>
-      <h2>你的职场DNA动了吗？</h2>
-      <p>20道题，测出你在职场的真实人格。<br>准备好接受灵魂拷问了吗？</p>
-      <button class="btn btn-primary" onclick="startTest()">
-        开始测试 →
-      </button>
+
+  <div class="progress-stepper" id="progress-stepper" style="display:none;">
+    <div class="step active" data-step="1">
+      <div class="step-dot">1</div>
+      <div class="step-label">主题</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" data-step="2">
+      <div class="step-dot">2</div>
+      <div class="step-label">风格</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" data-step="3">
+      <div class="step-dot">3</div>
+      <div class="step-label">测试</div>
     </div>
   </div>
-  
-  <!-- Test Page -->
+
+  <div class="page active" id="page-welcome">
+    <div class="welcome-flow">
+      <div class="welcome-step active" id="step-theme">
+        <div class="step-header">
+          <div class="step-emoji">🎯</div>
+          <h2>选择测试主题</h2>
+          <p class="step-desc">你想探索哪个维度的自己？</p>
+        </div>
+        <div class="theme-grid" id="theme-grid">
+          <div class="loading-skeleton">
+            <div class="spinner-lg"></div>
+            <p>加载主题中...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="welcome-step" id="step-style">
+        <div class="step-header">
+          <div class="step-emoji">✨</div>
+          <h2>选择吐槽风格</h2>
+          <p class="step-desc">你想被怎样"解读"？</p>
+        </div>
+        <div class="style-grid" id="style-grid">
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goBackToTheme()">
+            ← 返回
+          </button>
+        </div>
+      </div>
+
+      <div class="welcome-step" id="step-ready">
+        <div class="step-header ready-header">
+          <div class="ready-emoji" id="ready-emoji">🚀</div>
+          <h2 id="ready-title">准备就绪</h2>
+          <div class="ready-selection">
+            <div class="selection-badge" id="selected-theme-badge"></div>
+            <div class="selection-arrow">→</div>
+            <div class="selection-badge style-badge" id="selected-style-badge"></div>
+          </div>
+          <p class="step-desc">准备好接受灵魂拷问了吗？</p>
+        </div>
+        <div class="ready-features">
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <span>约20道题</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🎭</span>
+            <span>专属人格画像</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">📊</span>
+            <span>雷达维度分析</span>
+          </div>
+        </div>
+        <div class="ready-actions">
+          <button class="btn btn-ghost" onclick="goBackToStyle()">
+            ← 重选风格
+          </button>
+          <button class="btn btn-primary btn-glow" onclick="startTest()">
+            开始测试 →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-test">
     <div class="progress-container">
       <div class="progress-bar">
@@ -52,7 +132,7 @@ window.addEventListener('load', function () {
       </div>
       <div class="progress-text" id="progress-text">第 0 题</div>
     </div>
-    
+
     <div id="question-area">
       <div class="loading">
         <div class="spinner"></div>
@@ -60,16 +140,14 @@ window.addEventListener('load', function () {
       </div>
     </div>
   </div>
-  
-  <!-- Result Page -->
+
   <div class="page" id="page-result">
     <div class="result" id="result-area">
-      <!-- 结果内容 -->
     </div>
   </div>
-  
+
   <footer class="footer">
-    <p>由 <a href="#">NBTI</a> 提供 · 专治各种职场不服</p>
+    <p>由 <a href="#">NBTI</a> 提供 · 人格测试宇宙</p>
   </footer>
 </div>
 

@@ -1,21 +1,37 @@
 # --- 运行时生成 ---
 logs/
 *.log
+*.pid
 
 # --- 敏感信息 / API 密钥 ---
 data/config.json
 .env
-.env.local
+.env.*
+!.env.example
 *.secret
+*.key
+*.pem
 
 # --- 运行时数据 ---
 data/conversations/
 data/shares/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
 
 # --- macOS ---
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Linux ---
+*~
 
 # --- Python ---
 __pycache__/
@@ -23,44 +39,86 @@ __pycache__/
 *$py.class
 *.so
 .Python
+pip-log.txt
+pip-delete-this-directory.txt
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 *.egg-info/
+.dist/
+build/
+dist/
+wheels/
+*.egg
 
 # --- 编辑器 / IDE ---
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
+*.swn
 .project
 .settings/
+*.sublime-workspace
+*.sublime-project
 *.sublime-*
 .history/
 .trae/
 .deepseek/
+.atom/
+*.code-workspace
+.vscode/
+
+# --- Jupyter Notebook ---
+.ipynb_checkpoints/
 
 # --- 临时文件 ---
 *.tmp
 *.temp
 *.bak
+*.orig
+*.rej
+*.patch
 
 # --- 测试缓存 ---
 .pytest_cache/
 .tox/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+*.cover
 tests/__pycache__/
 tests/browser/
 tests/logs/
 tests/screenshots/
 tests/e2e/screenshots/
+.nox/
 
-# --- Node.js ---
+# --- Node.js (虽然本项目用Vanilla JS，但以防万一) ---
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
 
-# --- Claude Code ---
+# --- Docker ---
+.dockerignore
+
+# --- 备份文件 ---
+*.sql.gz
+*.tar.gz
+*.zip
+
+# --- Claude Code / AI 工具 ---
 .claude/
+.cursor/
+.aider*
+
+# --- 本地配置覆盖 ---
+local_config.json
+config.local.json

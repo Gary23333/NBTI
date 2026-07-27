@@ -2,36 +2,62 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>NBTI 人格报告</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
 <link rel="stylesheet" href="/style.css">
 <style>
-  /* 分享页专属样式（配色全部复用 style.css 主题变量） */
+  body {
+    background: var(--bg-primary);
+  }
+  .app-bg-share {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+  .blob-share {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: blobFloat 20s ease-in-out infinite;
+  }
+  [data-theme="light"] .blob-share { opacity: 0.2; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) .blob-share { opacity: 0.2; }
+  }
+  .blob-share-1 { width: 350px; height: 350px; background: var(--accent-violet); top: -80px; left: -80px; }
+  .blob-share-2 { width: 300px; height: 300px; background: var(--accent-pink); top: 35%; right: -60px; animation-delay: -7s; }
+  .blob-share-3 { width: 250px; height: 250px; background: var(--accent-cyan); bottom: -40px; left: 25%; animation-delay: -14s; }
+
   .share-brand {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 50;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    background: var(--surface-glass);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border-bottom: 1px solid var(--border-glass);
   }
   .share-brand-logo {
-    font-size: 1.2rem;
-    font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 900;
     text-decoration: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
   }
   .share-brand-btn {
-    padding: 8px 22px;
+    padding: 10px 24px;
     font-size: 0.9rem;
-    text-decoration: none;
   }
   .share-pre {
     white-space: pre-wrap;
@@ -47,44 +73,165 @@
     gap: 20px;
     padding: 60px 20px;
   }
-  .share-error .emoji { font-size: 4rem; }
-  .share-error h2 { font-size: 1.5rem; font-weight: 700; }
-  .share-error p { color: var(--text-dim); max-width: 360px; }
+  .share-error .emoji { font-size: 4rem; animation: floatPulse 2s ease-in-out infinite; }
+  .share-error h2 { font-size: 1.5rem; font-weight: 800; }
+  .share-error p { color: var(--text-secondary); max-width: 360px; line-height: 1.7; }
   .share-error .btn { text-decoration: none; }
 
-  /* ---- 好友合盘区（配色复用主题变量，深浅主题自适应） ---- */
-  .compat-wrap { max-width: 600px; margin: 0 auto; padding: 8px 20px 48px; }
-  .compat-heading { text-align: center; font-size: 1.5rem; font-weight: 800; margin: 24px 0 8px; }
-  .compat-guide { text-align: center; color: var(--text-dim); margin: 0 0 20px; font-size: 0.95rem; }
-  .compat-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+  .result .theme-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--surface-glass);
+    backdrop-filter: var(--blur-sm);
+    -webkit-backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .share-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .share-actions .btn {
+    font-size: 0.9rem;
+    padding: 12px 20px;
+    min-height: 44px;
+  }
+
+  .compat-wrap { max-width: 600px; margin: 0 auto; padding: 8px 20px 60px; }
+  .compat-heading {
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 900;
+    margin: 32px 0 8px;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .compat-guide { text-align: center; color: var(--text-secondary); margin: 0 0 24px; font-size: 0.95rem; }
+  .compat-panel {
+    background: var(--surface-glass);
+    backdrop-filter: var(--blur-lg);
+    -webkit-backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+  }
   .compat-sides { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .compat-side { flex: 1; text-align: center; min-width: 0; }
-  .compat-side-label { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; }
-  .compat-chip { display: inline-flex; flex-direction: column; gap: 2px; padding: 10px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; }
-  .compat-chip-code { font-weight: 800; font-size: 1.1rem; color: var(--accent); letter-spacing: 1px; }
-  .compat-chip-name { font-size: 0.85rem; color: var(--text-dim); }
-  .compat-vs { font-weight: 800; font-size: 1.2rem; color: var(--accent); flex-shrink: 0; }
+  .compat-side-label { font-size: 0.8rem; color: var(--text-tertiary); margin-bottom: 10px; font-weight: 600; }
+  .compat-chip {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 20px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    min-width: 100px;
+  }
+  .compat-chip-code { font-weight: 900; font-size: 1.15rem; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
+  .compat-chip-name { font-size: 0.85rem; color: var(--text-secondary); }
+  .compat-vs-heart {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    animation: heartBeat 1.5s ease-in-out infinite;
+  }
+  @keyframes heartBeat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
   .compat-selects { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
-  .compat-selects select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; font-size: 0.9rem; }
-  .compat-selects select:focus { border-color: var(--accent); outline: none; }
-  .compat-go { display: block; margin: 16px auto 0; }
-  .compat-result { margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; text-align: center; }
-  .compat-ring-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 12px; }
-  .compat-ring-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.9rem; font-weight: 800; color: var(--accent); }
-  .compat-title { font-size: 1.3rem; font-weight: 800; margin: 4px 0 10px; }
-  .compat-verdict { color: var(--text-dim); line-height: 1.7; max-width: 440px; margin: 0 auto 16px; font-size: 0.95rem; }
-  .compat-dims { text-align: left; display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-  .compat-dim { border-top: 1px dashed var(--border); padding-top: 10px; }
-  .compat-dim-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 4px; }
-  .compat-rel { font-weight: 700; padding: 1px 10px; border-radius: 999px; font-size: 0.75rem; }
-  .compat-rel-same { color: var(--accent3); border: 1px solid var(--accent3); }
-  .compat-rel-comp { color: var(--accent2); border: 1px solid var(--accent2); }
-  .compat-rel-clash { color: var(--accent4); border: 1px solid var(--accent4); }
-  .compat-dim-comment { font-size: 0.9rem; }
-  .compat-hint { color: var(--text-dim); }
+  .compat-selects select {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    padding: 10px 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition-fast);
+  }
+  .compat-selects select:focus { border-color: var(--accent-violet); outline: none; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+  .compat-go { display: block; margin: 20px auto 0; }
+  .compat-result {
+    margin-top: 24px;
+    background: var(--surface-glass);
+    backdrop-filter: var(--blur-lg);
+    -webkit-backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    animation: scaleIn 0.4s var(--transition-base);
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .compat-ring-wrap { position: relative; width: 150px; height: 150px; margin: 0 auto 16px; }
+  .compat-ring-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 900; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .compat-title { font-size: 1.4rem; font-weight: 900; margin: 4px 0 12px; letter-spacing: -0.02em; }
+  .compat-verdict { color: var(--text-secondary); line-height: 1.8; max-width: 440px; margin: 0 auto 20px; font-size: 0.95rem; }
+  .compat-dims { text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+  .compat-dim { border-top: 1px dashed var(--border-glass); padding-top: 12px; }
+  .compat-dim-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-tertiary); margin-bottom: 6px; }
+  .compat-rel { font-weight: 700; padding: 3px 12px; border-radius: var(--radius-full); font-size: 0.75rem; }
+  .compat-rel-same { color: var(--accent-emerald); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); }
+  .compat-rel-comp { color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); }
+  .compat-rel-clash { color: var(--accent-rose); background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); }
+  .compat-dim-comment { font-size: 0.9rem; line-height: 1.6; }
+  .compat-hint { color: var(--text-secondary); }
+  .compat-preset-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, rgba(244, 114, 182, 0.15), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(244, 114, 182, 0.3);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    color: var(--accent-pink);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .toast-share {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface-glass);
+    backdrop-filter: var(--blur-lg);
+    -webkit-backdrop-filter: var(--blur-lg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-full);
+    padding: 14px 28px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-base);
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast-share.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 </style>
 <script>
-/* 提前应用主题（与主站 localStorage 键一致），避免页面闪烁 */
 (function () {
   var stored = null;
   try { stored = localStorage.getItem('nbti-theme'); } catch (e) {}
@@ -95,36 +242,39 @@
 </head>
 <body>
 
+<div class="app-bg-share">
+  <div class="blob-share blob-share-1"></div>
+  <div class="blob-share blob-share-2"></div>
+  <div class="blob-share blob-share-3"></div>
+</div>
+
 <div class="share-brand">
-  <a class="share-brand-logo" href="/">NBTI · 牛比体</a>
-  <a class="btn btn-primary share-brand-btn" href="/">我也要测</a>
+  <a class="share-brand-logo" href="/">NBTI · 人格测试</a>
+  <a class="btn btn-primary share-brand-btn" href="/">我也要测 →</a>
 </div>
 
 <div class="container">
-  <!-- 加载中 -->
   <div class="loading" id="share-loading">
-    <div class="spinner"></div>
-    <p style="margin-top: 12px;">正在加载人格报告...</p>
+    <div class="spinner-lg"></div>
+    <p style="margin-top: 16px; color: var(--text-secondary);">正在加载人格报告...</p>
   </div>
 
-  <!-- 结果内容（渲染逻辑全部使用 textContent，防 XSS） -->
   <div class="result" id="share-result" hidden></div>
 
-  <!-- 404 / 加载失败 -->
   <div class="share-error" id="share-error" hidden>
     <div class="emoji">🥲</div>
     <h2>链接已过期或不存在</h2>
-    <p>这份人格报告可能已被清理，或者链接有误。</p>
+    <p>这份人格报告可能已被清理，或者链接有误。来测一个全新的吧！</p>
     <a class="btn btn-primary" href="/">去测一个 →</a>
   </div>
 
   <footer class="footer">
-    <p>由 <a href="/">NBTI</a> 提供 · 专治各种职场不服</p>
+    <p>由 <a href="/">NBTI</a> 提供 · 人格测试宇宙</p>
   </footer>
 </div>
 
-<!-- 好友合盘功能区（由下方 NBTICompatUI 渲染） -->
 <div id="compat-zone"></div>
+<div class="toast-share" id="share-toast"></div>
 
 <script src="/avatar-generator.js"></script>
 <script src="/radar-chart.js"></script>
@@ -136,6 +286,16 @@
   var loadingEl = document.getElementById('share-loading');
   var resultEl = document.getElementById('share-result');
   var errorEl = document.getElementById('share-error');
+  var toastEl = document.getElementById('share-toast');
+  var toastTimer = null;
+  var currentSnapshot = null;
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2500);
+  }
 
   function showError() {
     loadingEl.hidden = true;
@@ -148,7 +308,6 @@
     return;
   }
 
-  /* 创建元素并写入纯文本（快照 JSON 是用户可控输入，一律 textContent，绝不用 innerHTML 直插） */
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -156,33 +315,51 @@
     return node;
   }
 
+  async function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
   function render(snapshot) {
+    currentSnapshot = snapshot;
     var result = snapshot.result || {};
     var scores = snapshot.scores || {};
+    var theme = snapshot.theme || 'workplace';
+    var themeInfo = snapshot.theme_info || null;
 
-    // 头像类型仅允许安全字符集（生成器内部也会转义，双保险），异常回退 NBTI
     var type = String(result.type || '');
     if (!/^[A-Za-z0-9_]{1,16}$/.test(type)) type = 'NBTI';
 
-    // 头像（200×200 圆角容器，样式与主站结果页一致）
+    if (themeInfo) {
+      var badge = el('div', 'theme-badge');
+      badge.innerHTML = themeInfo.icon + ' ' + themeInfo.name;
+      resultEl.appendChild(badge);
+    }
+
     var avatarBox = el('div', 'avatar-container');
     avatarBox.id = 'share-avatar';
-    avatarBox.style.cssText = 'width:200px;height:200px;margin:0 auto;border-radius:12px;overflow:hidden;border:4px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,0.3);';
     if (window.NBTIAvatar) {
-      // 生成器输出的是自包含 SVG 字符串（内部已转义），插入方式与主站一致
       avatarBox.innerHTML = window.NBTIAvatar.generateSvgAvatar(type);
     } else {
       avatarBox.textContent = '头像生成器加载失败';
     }
     resultEl.appendChild(avatarBox);
 
-    // 类型代码 / 名称 / 一句话评语
     resultEl.appendChild(el('div', 'code', String(result.type || 'UNKNOWN')));
     resultEl.appendChild(el('h2', null, String(result.name || '未知人格')));
     resultEl.appendChild(el('div', 'oneline', '"' + String(result.oneline || '') + '"'));
 
-    // 名场面 / 适配岗位 / 翻车场景
-    [['🎬 名场面', result.scene], ['🎯 适配岗位', result.adapt], ['⚠️ 翻车场景', result.crash]].forEach(function (pair) {
+    [['🎬 名场面', result.scene], ['🎯 适配', result.adapt], ['⚠️ 翻车', result.crash]].forEach(function (pair) {
       if (pair[1]) {
         var row = el('div', 'result-meta');
         row.appendChild(el('span', 'meta-label', pair[0]));
@@ -191,7 +368,6 @@
       }
     });
 
-    // 雷达图（scores 已由后端转 int 并 clamp）
     var radarSection = el('div', 'radar-section');
     radarSection.appendChild(el('h3', null, '📊 维度画像'));
     var radarBox = el('div', 'radar-chart');
@@ -202,7 +378,6 @@
       window.NBTIRadar.renderRadar(radarBox, scores);
     }
 
-    // 报告区块：毒舌解读 / 伪科学分析 / closing（多行文本用 pre-wrap 保留换行）
     var report = el('div', 'report');
     var hasReport = false;
     [['🔍 毒舌解读', result.interpretation], ['🧪 伪科学分析', result.pseudo_science]].forEach(function (pair) {
@@ -222,8 +397,67 @@
     }
     if (hasReport) resultEl.appendChild(report);
 
-    // 页面标题：<name> 的 NBTI 人格报告
-    document.title = (result.name ? String(result.name) : '神秘人') + ' 的 NBTI 人格报告';
+    var actions = el('div', 'share-actions');
+
+    var posterBtn = el('button', 'btn btn-primary', '📮 生成海报');
+    posterBtn.addEventListener('click', async function () {
+      if (!window.NBTIPoster) return;
+      posterBtn.disabled = true;
+      var origText = posterBtn.textContent;
+      posterBtn.textContent = '生成中…';
+      try {
+        var canvas = await window.NBTIPoster.generate(result, scores, {
+          theme: theme,
+          themeInfo: themeInfo,
+          slogan: themeInfo ? themeInfo.name : '人格测试'
+        });
+        var modal = document.getElementById('share-poster-modal');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'share-poster-modal';
+          modal.className = 'poster-modal';
+          modal.innerHTML = '<div class="poster-modal-inner"><img alt="分享海报"><p class="poster-modal-hint">长按图片可保存到相册</p><div class="poster-modal-actions"><button class="btn btn-primary" id="share-poster-download">📥 下载 PNG</button><button class="btn btn-outline" id="share-poster-close">关闭</button></div></div>';
+          document.body.appendChild(modal);
+          modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+          modal.querySelector('#share-poster-close').addEventListener('click', function () { modal.classList.remove('open'); });
+          modal.querySelector('#share-poster-download').addEventListener('click', function () {
+            window.NBTIPoster.download(result, scores, { theme: theme, themeInfo: themeInfo });
+          });
+        }
+        modal.querySelector('img').src = canvas.toDataURL('image/png');
+        modal.classList.add('open');
+      } catch (e) {
+        showToast('海报生成失败，请重试');
+      } finally {
+        posterBtn.disabled = false;
+        posterBtn.textContent = origText;
+      }
+    });
+    actions.appendChild(posterBtn);
+
+    var copyBtn = el('button', 'btn btn-outline', '📋 复制文案');
+    copyBtn.addEventListener('click', async function () {
+      if (!window.NBTIPoster) return;
+      var themeName = themeInfo ? themeInfo.name.replace('人格', '') : 'NBTI';
+      var hashtags = theme === 'animal' ? ['#动物人格', '#人格测试', '#NBTI'] : ['#人格测试', '#NBTI', '#职场人格'];
+      var text = window.NBTIPoster.generateCopyText(result, themeName, hashtags);
+      try {
+        await copyText(text);
+        showToast('文案已复制，快去发朋友圈！');
+      } catch (e) {
+        showToast('复制失败，请手动复制');
+      }
+    });
+    actions.appendChild(copyBtn);
+
+    var restartBtn = el('a', 'btn btn-outline', '🔄 我也要测');
+    restartBtn.href = '/';
+    actions.appendChild(restartBtn);
+
+    resultEl.appendChild(actions);
+
+    var shareTitle = (result.name ? String(result.name) : '神秘人') + ' 的 NBTI 人格报告';
+    document.title = shareTitle;
 
     loadingEl.hidden = true;
     resultEl.hidden = false;
@@ -239,21 +473,19 @@
         throw new Error('bad snapshot');
       }
       render(snapshot);
-      if (window.NBTICompatUI) window.NBTICompatUI.init(snapshot.result);
+      if (window.NBTICompatUI) window.NBTICompatUI.init(snapshot.result, snapshot.theme);
     })
     .catch(showError);
 })();
 </script>
 
 <script>
-/* 好友合盘区：在 #compat-zone 内渲染（全部 textContent / setAttribute，防 XSS） */
 (function () {
-  // 4 个下拉防呆选择器：默认各选第一个（NBTI）
   var DIM_OPTIONS = [
-    [{ v: 'N', t: 'N · 能动' }, { v: 'S', t: 'S · 稳态' }],
-    [{ v: 'B', t: 'B · 边界' }, { v: 'H', t: 'H · 合群' }],
-    [{ v: 'T', t: 'T · 理性' }, { v: 'F', t: 'F · 感性' }],
-    [{ v: 'I', t: 'I · 执行' }, { v: 'P', t: 'P · 灵活' }]
+    [{ v: 'N', t: 'N' }, { v: 'S', t: 'S' }],
+    [{ v: 'B', t: 'B' }, { v: 'H', t: 'H' }],
+    [{ v: 'T', t: 'T' }, { v: 'F', t: 'F' }],
+    [{ v: 'I', t: 'I' }, { v: 'P', t: 'P' }]
   ];
 
   function el(tag, className, text) {
@@ -269,20 +501,32 @@
     return node;
   }
 
-  // 合拍指数环形图（纯 SVG，score 为 0-100 数字）
   function buildRing(score) {
-    var R = 60;
+    var R = 65;
     var C = 2 * Math.PI * R;
     var wrap = el('div', 'compat-ring-wrap');
-    var svg = svgEl('svg', { width: 140, height: 140, viewBox: '0 0 140 140' });
-    svg.appendChild(svgEl('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--border)', 'stroke-width': 10 }));
-    svg.appendChild(svgEl('circle', {
-      cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 10,
+    var svg = svgEl('svg', { width: 150, height: 150, viewBox: '0 0 150 150' });
+    svg.appendChild(svgEl('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--border-glass)', 'stroke-width': 10 }));
+    var offset = C * (1 - Math.max(0, Math.min(100, score)) / 100);
+    var progressCircle = svgEl('circle', {
+      cx: 75, cy: 75, r: R, fill: 'none', stroke: 'url(#compatGrad)', 'stroke-width': 10,
       'stroke-linecap': 'round',
       'stroke-dasharray': C.toFixed(2),
-      'stroke-dashoffset': (C * (1 - Math.max(0, Math.min(100, score)) / 100)).toFixed(2),
-      transform: 'rotate(-90 70 70)'
-    }));
+      'stroke-dashoffset': offset.toFixed(2),
+      transform: 'rotate(-90 75 75)'
+    });
+    var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    var grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    grad.setAttribute('id', 'compatGrad');
+    grad.setAttribute('x1', '0%'); grad.setAttribute('y1', '0%');
+    grad.setAttribute('x2', '100%'); grad.setAttribute('y2', '100%');
+    var stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop1.setAttribute('offset', '0%'); stop1.setAttribute('stop-color', '#8b5cf6');
+    var stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop2.setAttribute('offset', '100%'); stop2.setAttribute('stop-color', '#ec4899');
+    grad.appendChild(stop1); grad.appendChild(stop2); defs.appendChild(grad);
+    svg.appendChild(defs);
+    svg.appendChild(progressCircle);
     wrap.appendChild(svg);
     wrap.appendChild(el('div', 'compat-ring-num', String(score) + '%'));
     return wrap;
@@ -290,23 +534,23 @@
 
   var REL_CLASS = { '同频': 'compat-rel compat-rel-same', '互补': 'compat-rel compat-rel-comp', '互斥': 'compat-rel compat-rel-clash' };
 
-  function init(result) {
+  function init(result, theme) {
     var zone = document.getElementById('compat-zone');
     if (!zone || !window.NBTICompat) return;
 
-    // 与上方头像渲染同款校验：仅允许安全字符集
+    var category = theme === 'animal' ? 'animal' : 'workplace';
     var mineType = String(result.type || '');
     if (!/^[A-Za-z0-9_]{1,16}$/.test(mineType)) return;
-    var mineName = String(result.name || mineType);
+    var typeInfo = window.NBTICompat.getTypeInfo(mineType, category);
+    var mineName = typeInfo.name || String(result.name || mineType);
 
     var wrap = el('div', 'compat-wrap');
     wrap.appendChild(el('h2', 'compat-heading', '💞 测测我们合不合'));
-    wrap.appendChild(el('p', 'compat-guide', '把链接甩给 TA，测完回来合盘'));
+    wrap.appendChild(el('p', 'compat-guide', category === 'animal' ? '选TA的动物人格，看看你们是不是天生一对' : '把链接甩给TA，测完回来合盘'));
 
     var panel = el('div', 'compat-panel');
     var sides = el('div', 'compat-sides');
 
-    // 我方类型（只读展示）
     var mineSide = el('div', 'compat-side');
     mineSide.appendChild(el('div', 'compat-side-label', '你的类型'));
     var chip = el('div', 'compat-chip');
@@ -315,9 +559,8 @@
     mineSide.appendChild(chip);
     sides.appendChild(mineSide);
 
-    sides.appendChild(el('div', 'compat-vs', 'VS'));
+    sides.appendChild(el('div', 'compat-vs-heart', '❤'));
 
-    // TA 的类型（下拉选择器）
     var theirSide = el('div', 'compat-side');
     theirSide.appendChild(el('div', 'compat-side-label', 'TA 的类型'));
     var selectsBox = el('div', 'compat-selects');
@@ -336,7 +579,7 @@
     sides.appendChild(theirSide);
     panel.appendChild(sides);
 
-    var goBtn = el('button', 'btn btn-primary compat-go', '开始合盘');
+    var goBtn = el('button', 'btn btn-primary compat-go', '开始合盘 💘');
     panel.appendChild(goBtn);
     wrap.appendChild(panel);
 
@@ -350,7 +593,7 @@
 
     goBtn.addEventListener('click', function () {
       lastTheirType = selects.map(function (s) { return s.value; }).join('');
-      lastCompat = window.NBTICompat.getCompat(mineType, lastTheirType);
+      lastCompat = window.NBTICompat.getCompat(mineType, lastTheirType, { category: category });
       renderCard();
     });
 
@@ -358,9 +601,12 @@
       while (card.firstChild) card.removeChild(card.firstChild);
       var compat = lastCompat;
       if (!compat) {
-        card.appendChild(el('p', 'compat-hint', '你的类型太神秘，五行之外都算不到，建议重测一个。'));
+        card.appendChild(el('p', 'compat-hint', '你们的类型太神秘，五行之外都算不到...'));
         card.hidden = false;
         return;
+      }
+      if (compat.isPreset) {
+        card.appendChild(el('div', 'compat-preset-tag', '✨ 热门CP组合'));
       }
       if (typeof compat.score === 'number') card.appendChild(buildRing(compat.score));
       card.appendChild(el('div', 'compat-title', compat.title));
@@ -380,9 +626,10 @@
         card.appendChild(dimsBox);
       }
 
-      // 合拍海报按钮
+      var btnRow = el('div', 'share-actions');
+
       if (window.NBTIPoster && typeof window.NBTIPoster.downloadCompat === 'function') {
-        var posterBtn = el('button', 'btn btn-primary compat-poster', '📮 生成合拍海报');
+        var posterBtn = el('button', 'btn btn-primary', '📮 生成合拍海报');
         posterBtn.addEventListener('click', function () {
           if (!lastCompat) return;
           posterBtn.disabled = true;
@@ -390,7 +637,12 @@
           Promise.resolve(window.NBTIPoster.downloadCompat(
             { type: mineType, name: mineName },
             { type: lastTheirType },
-            lastCompat
+            lastCompat,
+            {
+              theme: theme,
+              themeInfo: null,
+              slogan: category === 'animal' ? '动物CP合盘' : '好友合盘'
+            }
           )).then(function () {
             posterBtn.disabled = false;
             posterBtn.textContent = '📮 生成合拍海报';
@@ -399,8 +651,10 @@
             posterBtn.textContent = '📮 生成合拍海报';
           });
         });
-        card.appendChild(posterBtn);
+        btnRow.appendChild(posterBtn);
       }
+
+      card.appendChild(btnRow);
 
       card.hidden = false;
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -1,16 +1,17 @@
 {
-  "name": "NBTI · 牛比体",
+  "name": "NBTI · 人格测试宇宙",
   "short_name": "NBTI",
+  "description": "不止职场的人格测试，探索多个维度的自己",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f13",
-  "theme_color": "#0f0f13",
+  "background_color": "#0a0a0f",
+  "theme_color": "#8b5cf6",
   "icons": [
     {
       "src": "/icon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

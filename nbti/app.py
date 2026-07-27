@@ -24,6 +24,8 @@ from nbti.utils import (
     expected_next_question, inject_question_control, is_complete_assess,
     commit_answer_to_history, extract_scene_summary, trim_history
 )
+from nbti.themes import get_themes
+from nbti.prompts import get_prompt, get_prompt_presets, ALL_STYLES
 
 logger = logging.getLogger(__name__)
 
@@ -211,8 +213,31 @@ def create_app():
             "status": "ok",
             "profiles": len(config.get("llm_profiles", [])),
             "active_preset": config.get("active_preset", ""),
-            "version": "2.1.0"
+            "themes_count": len(get_themes()),
+            "styles_count": len(ALL_STYLES),
+            "version": "3.0.0-multitheme"
         })
+
+    # ---- Themes & Styles endpoints ----
+    @app.route('/api/themes', methods=['GET'])
+    def themes():
+        return jsonify(get_themes())
+
+    @app.route('/api/styles', methods=['GET'])
+    def styles():
+        return jsonify(ALL_STYLES)
+
+    def _get_dynamic_prompt(theme_id, style_name, phase, **kwargs):
+        prompts = get_prompt(theme_id, style_name)
+        prompt_key = f'prompt_{phase}'
+        prompt_template = prompts[prompt_key]
+        if callable(prompt_template):
+            return prompt_template(**kwargs)
+        else:
+            result = prompt_template
+            for k, v in kwargs.items():
+                result = result.replace('{' + k + '}', str(v))
+            return result
 
     # ---- Chat endpoints ----
     @app.route('/api/chat', methods=['POST'])
@@ -235,34 +260,47 @@ def create_app():
             conversation_id = str(uuid.uuid4())
             store.save_history(conversation_id, [])
 
+        is_new_session = message in ['开始测试', '开始'] or not store.get_history(conversation_id)
+        theme_id = data.get('theme', 'workplace')
+        style_name = data.get('style', '暴躁老油条')
+        
+        if is_new_session:
+            store.set_theme(conversation_id, theme_id)
+            store.set_style(conversation_id, style_name)
+        else:
+            theme_id = store.get_theme(conversation_id)
+            style_name = store.get_style(conversation_id)
+
         history = store.get_history(conversation_id)
         expected_q = None
 
-        if message in ['开始测试', '开始'] or not history:
+        eggs = config.get('easter_eggs', {})
+        egg_params = {f'easter_{key}': str(eggs.get(key, 1)) for key in ['schrodinger', 'hexagon', 'buddha', 'double', 'mouthpiece']}
+
+        if is_new_session:
             phase = 'init'
             expected_q = 1
-            system_prompt = config['prompt_init']
+            system_prompt = _get_dynamic_prompt(theme_id, style_name, 'init')
         elif '[PHASE:RESULT]' in message or '[CAN_CONCLUDE:true]' in message:
             phase = 'result'
-            system_prompt = config['prompt_result']
-            eggs = config.get('easter_eggs', {})
-            for key in ['schrodinger', 'hexagon', 'buddha', 'double', 'mouthpiece']:
-                system_prompt = system_prompt.replace('{' + f'easter_{key}' + '}', str(eggs.get(key, 1)))
+            system_prompt = _get_dynamic_prompt(theme_id, style_name, 'result', **egg_params)
         else:
             phase = 'assess'
             expected_q = expected_next_question(history)
-            system_prompt = config['prompt_assess']
             scenes = store.get_scenes(conversation_id)
             if scenes:
                 scenes_text = '\n'.join([f"- {s}" for s in scenes])
-                system_prompt = system_prompt.replace('{previous_scenes}', scenes_text)
             else:
-                system_prompt = system_prompt.replace('{previous_scenes}', '（暂无，你是第一题）')
+                scenes_text = '（暂无，你是第一题）'
             min_q = int(config.get("min_questions", 20))
             max_q = int(config.get("max_questions", 25))
-            system_prompt = system_prompt.replace('{min_questions}', str(min_q))
-            system_prompt = system_prompt.replace('{min_questions_minus_1}', str(min_q - 1))
-            system_prompt = system_prompt.replace('{max_questions}', str(max_q))
+            system_prompt = _get_dynamic_prompt(
+                theme_id, style_name, 'assess',
+                previous_scenes=scenes_text,
+                min_questions=str(min_q),
+                min_questions_minus_1=str(min_q - 1),
+                max_questions=str(max_q)
+            )
 
         if phase in ['init', 'assess']:
             system_prompt = inject_question_control(system_prompt, expected_q)
@@ -348,27 +386,36 @@ def create_app():
         history = list(store.get_history(conversation_id)) if conversation_id else []
         expected_q = None
 
+        if conversation_id:
+            theme_id = store.get_theme(conversation_id)
+            style_name = store.get_style(conversation_id)
+        else:
+            theme_id = data.get('theme', 'workplace')
+            style_name = data.get('style', '暴躁老油条')
+
+        eggs = config.get('easter_eggs', {})
+        egg_params = {f'easter_{key}': str(eggs.get(key, 1)) for key in ['schrodinger', 'hexagon', 'buddha', 'double', 'mouthpiece']}
+
         if '[PHASE:RESULT]' in message or '[CAN_CONCLUDE:true]' in message:
             phase = 'result'
-            system_prompt = config['prompt_result']
-            eggs = config.get('easter_eggs', {})
-            for key in ['schrodinger', 'hexagon', 'buddha', 'double', 'mouthpiece']:
-                system_prompt = system_prompt.replace('{' + f'easter_{key}' + '}', str(eggs.get(key, 1)))
+            system_prompt = _get_dynamic_prompt(theme_id, style_name, 'result', **egg_params)
         else:
             phase = 'assess'
             expected_q = expected_next_question(history)
-            system_prompt = config['prompt_assess']
             scenes = store.get_scenes(conversation_id) if conversation_id else []
             if scenes:
                 scenes_text = '\n'.join([f"- {s}" for s in scenes])
-                system_prompt = system_prompt.replace('{previous_scenes}', scenes_text)
             else:
-                system_prompt = system_prompt.replace('{previous_scenes}', '（暂无，你是第一题）')
+                scenes_text = '（暂无，你是第一题）'
             min_q = int(config.get("min_questions", 20))
             max_q = int(config.get("max_questions", 25))
-            system_prompt = system_prompt.replace('{min_questions}', str(min_q))
-            system_prompt = system_prompt.replace('{min_questions_minus_1}', str(min_q - 1))
-            system_prompt = system_prompt.replace('{max_questions}', str(max_q))
+            system_prompt = _get_dynamic_prompt(
+                theme_id, style_name, 'assess',
+                previous_scenes=scenes_text,
+                min_questions=str(min_q),
+                min_questions_minus_1=str(min_q - 1),
+                max_questions=str(max_q)
+            )
 
         if phase == 'assess':
             system_prompt = inject_question_control(system_prompt, expected_q)

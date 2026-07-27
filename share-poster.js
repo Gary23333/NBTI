@@ -1,23 +1,70 @@
 (function () {
-  // 分享海报生成器：零依赖原生 Canvas，固定深色配色（不随页面主题变，保证分享一致性）
   const W = 750;
   const H = 1200;
-  const PAD = 48;
+  const PAD = 52;
 
-  const COLORS = {
-    bg: '#0f0e17',
-    bgTop: '#171423',
-    accent: '#f472b6',
-    text: '#f5f3ff',
-    textDim: '#b9b6d3',
-    textFaint: '#7d7a96',
-    line: 'rgba(255,255,255,0.08)',
-    panel: 'rgba(255,255,255,0.04)',
-    radar: { accent: '#f472b6', text: '#e8e8f0', textDim: '#8888a0', grid: '#3a3a52' }
+  const THEMES = {
+    workplace: {
+      id: 'workplace',
+      name: '职场人格',
+      icon: '💼',
+      bg: '#0f0e17',
+      bgTop: '#171423',
+      bgGlow1: '#8b5cf6',
+      bgGlow2: '#ec4899',
+      accent: '#f472b6',
+      accent2: '#8b5cf6',
+      text: '#f5f3ff',
+      textDim: '#b9b6d3',
+      textFaint: '#7d7a96',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(255,255,255,0.04)',
+      radar: { accent: '#f472b6', text: '#e8e8f0', textDim: '#8888a0', grid: '#3a3a52' }
+    },
+    animal: {
+      id: 'animal',
+      name: '动物系人格',
+      icon: '🐾',
+      bg: '#0d1b0f',
+      bgTop: '#132a17',
+      bgGlow1: '#f59e0b',
+      bgGlow2: '#10b981',
+      accent: '#fbbf24',
+      accent2: '#34d399',
+      text: '#f0fdf4',
+      textDim: '#a7d7b5',
+      textFaint: '#6b9077',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(16,185,129,0.06)',
+      radar: { accent: '#fbbf24', text: '#d1fae5', textDim: '#6ee7b7', grid: '#2d4a35' }
+    },
+    color: {
+      id: 'color',
+      name: '色彩人格',
+      icon: '🎨',
+      bg: '#0f0f1a',
+      bgTop: '#1a1025',
+      bgGlow1: '#f43f5e',
+      bgGlow2: '#06b6d4',
+      accent: '#f472b6',
+      accent2: '#38bdf8',
+      text: '#fef3ff',
+      textDim: '#d4b8e8',
+      textFaint: '#8b6ca3',
+      line: 'rgba(255,255,255,0.08)',
+      panel: 'rgba(244,114,182,0.06)',
+      radar: { accent: '#f472b6', text: '#fce7f3', textDim: '#f9a8d4', grid: '#3b2450' }
+    }
   };
+
+  const DEFAULT_THEME = 'workplace';
 
   const FONT_STACK = "-apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif";
   const MONO_STACK = "'SF Mono', 'Courier New', monospace";
+
+  function getTheme(themeId) {
+    return THEMES[themeId] || THEMES[DEFAULT_THEME];
+  }
 
   function svgToImage(svg) {
     return new Promise((resolve) => {
@@ -29,7 +76,6 @@
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-      // 兜底：极端情况下 onload/onerror 均不触发
       setTimeout(() => resolve(img.complete && img.naturalWidth ? img : null), 3000);
     });
   }
@@ -44,7 +90,6 @@
     ctx.closePath();
   }
 
-  // CJK 友好换行：逐字符测量，返回行数组，最多 maxLines 行，超出截断加省略号
   function wrapLines(ctx, text, maxWidth, maxLines) {
     const str = String(text || '').replace(/\s+/g, ' ').trim();
     if (!str) return [];
@@ -60,7 +105,6 @@
       }
     }
     if (lines.length < maxLines && line) lines.push(line);
-    // 被截断时给最后一行补省略号
     const consumed = lines.join('').length;
     if (consumed < str.length && lines.length) {
       let last = lines[lines.length - 1];
@@ -91,75 +135,80 @@
     ctx.restore();
   }
 
-  // ---- 背景：深色底 + 微弱纵向渐变 + 角落装饰光晕 ----
-  function paintBackground(ctx) {
+  function paintBackground(ctx, theme) {
     const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, COLORS.bgTop);
-    bgGrad.addColorStop(0.35, COLORS.bg);
-    bgGrad.addColorStop(1, COLORS.bg);
+    bgGrad.addColorStop(0, theme.bgTop);
+    bgGrad.addColorStop(0.4, theme.bg);
+    bgGrad.addColorStop(1, theme.bg);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
-    glow(ctx, W - 60, 80, 260, COLORS.accent, 0.10);
-    glow(ctx, 60, H - 140, 300, '#60a5fa', 0.08);
+    glow(ctx, W - 80, 100, 320, theme.bgGlow1, 0.12);
+    glow(ctx, 80, H - 180, 360, theme.bgGlow2, 0.10);
+    glow(ctx, W / 2, H / 2, 400, theme.accent2, 0.05);
   }
 
-  // ---- 顶部品牌 + 分隔线 ----
-  function paintHeader(ctx) {
+  function paintHeader(ctx, theme, themeInfo) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = COLORS.text;
-    ctx.font = `700 30px ${FONT_STACK}`;
-    ctx.fillText('NBTI · 牛比体', W / 2, 78);
 
-    ctx.strokeStyle = COLORS.line;
+    ctx.fillStyle = theme.accent;
+    ctx.font = `600 22px ${FONT_STACK}`;
+    const themeLabel = themeInfo ? themeInfo.icon + ' ' + themeInfo.name : theme.name;
+    ctx.fillText(themeLabel, W / 2, 70);
+
+    ctx.fillStyle = theme.text;
+    ctx.font = `800 32px ${FONT_STACK}`;
+    ctx.fillText('NBTI · 人格测试', W / 2, 112);
+
+    ctx.strokeStyle = theme.line;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(PAD, 104);
-    ctx.lineTo(W - PAD, 104);
+    ctx.moveTo(PAD, 140);
+    ctx.lineTo(W - PAD, 140);
     ctx.stroke();
-    // 分隔线中心的小装饰
-    ctx.fillStyle = COLORS.accent;
+
     ctx.save();
-    ctx.translate(W / 2, 104);
+    ctx.translate(W / 2, 140);
     ctx.rotate(Math.PI / 4);
-    ctx.fillRect(-4, -4, 8, 8);
+    ctx.fillStyle = theme.accent;
+    ctx.fillRect(-5, -5, 10, 10);
     ctx.restore();
   }
 
-  // ---- 底部：日期 + 域名 slogan ----
-  function paintFooter(ctx, slogan) {
-    ctx.strokeStyle = COLORS.line;
+  function paintFooter(ctx, theme, slogan) {
+    ctx.strokeStyle = theme.line;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(PAD, H - 96);
-    ctx.lineTo(W - PAD, H - 96);
+    ctx.moveTo(PAD, H - 80);
+    ctx.lineTo(W - PAD, H - 80);
     ctx.stroke();
 
-    ctx.font = `400 20px ${FONT_STACK}`;
-    ctx.fillStyle = COLORS.textFaint;
+    ctx.font = `400 22px ${FONT_STACK}`;
+    ctx.fillStyle = theme.textFaint;
     ctx.textAlign = 'left';
-    ctx.fillText(formatDate(new Date()), PAD, H - 52);
+    ctx.fillText(formatDate(new Date()), PAD, H - 36);
     ctx.textAlign = 'right';
     const host = (typeof location !== 'undefined' && location.host) || '';
-    ctx.fillText(`${slogan} · ${host}`, W - PAD, H - 52);
+    ctx.fillText(`${slogan}${host ? ' · ' + host : ''}`, W - PAD, H - 36);
   }
 
-  async function generate(result, scores) {
+  async function generate(result, scores, opts) {
     const r = result || {};
+    const options = opts || {};
+    const theme = getTheme(options.theme);
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    paintBackground(ctx);
-    paintHeader(ctx);
+    paintBackground(ctx, theme);
+    paintHeader(ctx, theme, options.themeInfo);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
 
-    // ---- 头像（居中，圆角）----
-    const AVATAR = 260;
+    const AVATAR = 240;
     const ax = (W - AVATAR) / 2;
-    const ay = 140;
+    const ay = 175;
     let avatarImg = null;
     if (window.NBTIAvatar && typeof window.NBTIAvatar.generateSvgAvatar === 'function') {
       try {
@@ -167,91 +216,105 @@
       } catch (e) { avatarImg = null; }
     }
     ctx.save();
-    roundRectPath(ctx, ax, ay, AVATAR, AVATAR, 32);
+    roundRectPath(ctx, ax, ay, AVATAR, AVATAR, 36);
     ctx.clip();
     if (avatarImg) {
       ctx.drawImage(avatarImg, ax, ay, AVATAR, AVATAR);
     } else {
-      ctx.fillStyle = COLORS.panel;
+      ctx.fillStyle = theme.panel;
       ctx.fillRect(ax, ay, AVATAR, AVATAR);
-      ctx.fillStyle = COLORS.textFaint;
-      ctx.font = `400 22px ${FONT_STACK}`;
+      ctx.fillStyle = theme.textFaint;
+      ctx.font = `400 24px ${FONT_STACK}`;
       ctx.fillText(r.type || 'NBTI', W / 2, ay + AVATAR / 2 + 8);
     }
     ctx.restore();
-    roundRectPath(ctx, ax, ay, AVATAR, AVATAR, 32);
-    ctx.strokeStyle = 'rgba(244,114,182,0.45)';
-    ctx.lineWidth = 3;
+    roundRectPath(ctx, ax - 3, ay - 3, AVATAR + 6, AVATAR + 6, 38);
+    const borderGrad = ctx.createLinearGradient(ax, ay, ax + AVATAR, ay + AVATAR);
+    borderGrad.addColorStop(0, theme.accent);
+    borderGrad.addColorStop(1, theme.accent2);
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // ---- 类型代码 / 名称 / 一句话 ----
-    let y = ay + AVATAR + 76;
-    ctx.fillStyle = COLORS.accent;
-    ctx.font = `800 58px ${MONO_STACK}`;
+    let y = ay + AVATAR + 70;
+    ctx.fillStyle = theme.accent;
+    ctx.font = `900 64px ${MONO_STACK}`;
     ctx.fillText(String(r.type || 'UNKNOWN'), W / 2, y);
 
-    y += 52;
-    ctx.fillStyle = COLORS.text;
-    ctx.font = `700 34px ${FONT_STACK}`;
+    y += 56;
+    ctx.fillStyle = theme.text;
+    ctx.font = `800 38px ${FONT_STACK}`;
     ctx.fillText(String(r.name || ''), W / 2, y);
 
-    y += 30;
-    ctx.fillStyle = COLORS.textDim;
-    ctx.font = `400 24px ${FONT_STACK}`;
-    y = drawCenteredLines(ctx, wrapLines(ctx, r.oneline, W - PAD * 2 - 60, 3), y + 8, 36);
+    y += 42;
+    ctx.fillStyle = theme.textDim;
+    ctx.font = `500 26px ${FONT_STACK}`;
+    const onelineText = r.oneline ? '"' + r.oneline + '"' : '';
+    y = drawCenteredLines(ctx, wrapLines(ctx, onelineText, W - PAD * 2 - 80, 2), y, 40);
 
-    // ---- 雷达图 ----
-    const RADAR = 320;
-    const ry = y + 24;
+    const RADAR = 300;
+    const ry = y + 36;
     let radarImg = null;
     if (window.NBTIRadar && typeof window.NBTIRadar.getRadarSvg === 'function') {
       try {
-        radarImg = await svgToImage(window.NBTIRadar.getRadarSvg(scores, { size: RADAR, colors: COLORS.radar }));
+        radarImg = await svgToImage(window.NBTIRadar.getRadarSvg(scores, { size: RADAR, colors: theme.radar }));
       } catch (e) { radarImg = null; }
     }
     if (radarImg) {
+      ctx.save();
+      ctx.shadowColor = theme.accent;
+      ctx.shadowBlur = 40;
       ctx.drawImage(radarImg, (W - RADAR) / 2, ry, RADAR, RADAR);
+      ctx.restore();
     } else {
-      ctx.strokeStyle = COLORS.line;
+      ctx.strokeStyle = theme.line;
       ctx.strokeRect((W - RADAR) / 2, ry, RADAR, RADAR);
     }
-    y = ry + RADAR + 30;
+    y = ry + RADAR;
 
-    // ---- meta 三条（弹性高度，给底部留出 120px）----
+    const metaBoxY = y + 24;
+    const metaBoxH = 200;
+    roundRectPath(ctx, PAD, metaBoxY, W - PAD * 2, metaBoxH, 20);
+    ctx.fillStyle = theme.panel;
+    ctx.fill();
+    ctx.strokeStyle = theme.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     const metas = [
-      ['🎬 名场面', r.scene],
-      ['🎯 适配岗位', r.adapt],
-      ['⚠️ 翻车场景', r.crash]
-    ].filter(m => m[1]);
+      { icon: '🎬', label: '名场面', value: r.scene },
+      { icon: '🎯', label: '适配', value: r.adapt },
+      { icon: '⚠️', label: '翻车', value: r.crash }
+    ].filter(m => m.value);
 
-    const metaMaxBottom = H - 120;
     ctx.textAlign = 'left';
-    for (const [label, value] of metas) {
-      if (y + 34 > metaMaxBottom) break;
+    const metaStartY = metaBoxY + 42;
+    const metaLineH = 48;
+    metas.slice(0, 3).forEach((m, i) => {
+      const my = metaStartY + i * metaLineH;
       ctx.font = `600 22px ${FONT_STACK}`;
-      ctx.fillStyle = COLORS.accent;
-      ctx.fillText(label, PAD + 8, y + 22);
-      const labelWidth = ctx.measureText(label).width + 24;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText(m.icon + ' ' + m.label, PAD + 28, my);
+      const labelWidth = ctx.measureText(m.icon + ' ' + m.label).width + 28;
       ctx.font = `400 22px ${FONT_STACK}`;
-      ctx.fillStyle = COLORS.textDim;
-      const lines = wrapLines(ctx, value, W - PAD * 2 - 16 - labelWidth, 2);
-      lines.forEach((line, i) => {
-        if (y + 22 + i * 32 > metaMaxBottom) return;
-        ctx.fillText(line, PAD + 8 + (i === 0 ? labelWidth : 0), y + 22 + i * 32);
-      });
-      y += lines.length * 32 + 12;
-    }
+      ctx.fillStyle = theme.textDim;
+      const maxW = W - PAD * 2 - 56 - labelWidth;
+      const valLines = wrapLines(ctx, m.value, maxW, 1);
+      if (valLines[0]) {
+        ctx.fillText(valLines[0], PAD + 28 + labelWidth, my);
+      }
+    });
 
-    // ---- 底部：日期 + 域名 slogan ----
-    paintFooter(ctx, '测测你是哪种职场生物');
+    paintFooter(ctx, theme, options.slogan || '测测你是哪种人格');
 
     return canvas;
   }
 
-  async function download(result, scores, filename) {
-    const canvas = await generate(result, scores);
+  async function download(result, scores, opts, filename) {
+    const options = typeof opts === 'string' ? { filename: opts } : (opts || {});
+    const canvas = await generate(result, scores, options);
     const type = (result && result.type) || 'result';
-    const name = filename || `nbti-${String(type).toLowerCase()}-poster.png`;
+    const name = filename || options.filename || `nbti-${String(type).toLowerCase()}-poster.png`;
     return new Promise((resolve) => {
       const done = url => {
         const link = document.createElement('a');
@@ -272,7 +335,6 @@
     });
   }
 
-  // 好友名查询：优先 NBTICompat.TYPES，查不到回退类型码
   function lookupName(type) {
     const t = String(type || '').toUpperCase();
     if (window.NBTICompat && window.NBTICompat.TYPES && window.NBTICompat.TYPES[t]) {
@@ -281,7 +343,7 @@
     return String(type || 'UNKNOWN');
   }
 
-  async function drawCompatAvatar(ctx, type, x, y, size) {
+  async function drawCompatAvatar(ctx, type, x, y, size, theme) {
     let img = null;
     if (window.NBTIAvatar && typeof window.NBTIAvatar.generateSvgAvatar === 'function') {
       try {
@@ -294,119 +356,146 @@
     if (img) {
       ctx.drawImage(img, x, y, size, size);
     } else {
-      ctx.fillStyle = COLORS.panel;
+      ctx.fillStyle = theme.panel;
       ctx.fillRect(x, y, size, size);
-      ctx.fillStyle = COLORS.textFaint;
+      ctx.fillStyle = theme.textFaint;
       ctx.font = `400 20px ${FONT_STACK}`;
       ctx.textAlign = 'center';
       ctx.fillText(String(type || '???'), x + size / 2, y + size / 2 + 7);
     }
     ctx.restore();
-    roundRectPath(ctx, x, y, size, size, 28);
-    ctx.strokeStyle = 'rgba(244,114,182,0.45)';
+    roundRectPath(ctx, x - 2, y - 2, size + 4, size + 4, 30);
+    const borderGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+    borderGrad.addColorStop(0, theme.accent);
+    borderGrad.addColorStop(1, theme.accent2);
+    ctx.strokeStyle = borderGrad;
     ctx.lineWidth = 3;
     ctx.stroke();
   }
 
-  // 合拍海报：mine {type,name}（分享页当前用户）、theirs {type}、compat 为 NBTICompat.getCompat 返回结构
-  async function generateCompat(mine, theirs, compat) {
+  async function generateCompat(mine, theirs, compat, opts) {
     const m = mine || {};
     const t = theirs || {};
     const c = compat || {};
+    const options = opts || {};
+    const theme = getTheme(options.theme);
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    paintBackground(ctx);
-    paintHeader(ctx);
+    paintBackground(ctx, theme);
+    paintHeader(ctx, theme, options.themeInfo);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
 
-    // ---- 左右头像 + 中间 VS 徽章 ----
+    ctx.fillStyle = theme.accent2;
+    ctx.font = `700 28px ${FONT_STACK}`;
+    ctx.fillText('💞 CP合盘报告', W / 2, 180);
+
     const AV = 200;
-    const GAP = 110;
-    const ay = 150;
+    const GAP = 100;
+    const ay = 220;
     const leftX = (W - AV * 2 - GAP) / 2;
     const rightX = leftX + AV + GAP;
-    await drawCompatAvatar(ctx, m.type, leftX, ay, AV);
-    await drawCompatAvatar(ctx, t.type, rightX, ay, AV);
+    await drawCompatAvatar(ctx, m.type, leftX, ay, AV, theme);
+    await drawCompatAvatar(ctx, t.type, rightX, ay, AV, theme);
 
-    // VS 圆形徽章
     const badgeX = W / 2;
     const badgeY = ay + AV / 2;
     ctx.beginPath();
-    ctx.arc(badgeX, badgeY, 46, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS.accent;
+    ctx.arc(badgeX, badgeY, 50, 0, Math.PI * 2);
+    const badgeGrad = ctx.createLinearGradient(badgeX - 50, badgeY - 50, badgeX + 50, badgeY + 50);
+    badgeGrad.addColorStop(0, theme.accent);
+    badgeGrad.addColorStop(1, theme.accent2);
+    ctx.fillStyle = badgeGrad;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `800 38px ${FONT_STACK}`;
-    ctx.fillText('VS', badgeX, badgeY + 13);
+    ctx.font = `900 32px ${FONT_STACK}`;
+    ctx.fillText('❤', badgeX, badgeY + 12);
 
-    // ---- 两侧类型码 / 名称 ----
     const nameOf = (side, fallbackType) => String(side.name || lookupName(fallbackType));
-    ctx.font = `800 30px ${MONO_STACK}`;
-    ctx.fillStyle = COLORS.accent;
-    ctx.fillText(String(m.type || '???'), leftX + AV / 2, ay + AV + 44);
-    ctx.fillText(String(t.type || '???'), rightX + AV / 2, ay + AV + 44);
+    ctx.font = `800 28px ${MONO_STACK}`;
+    ctx.fillStyle = theme.accent;
+    ctx.fillText(String(m.type || '???'), leftX + AV / 2, ay + AV + 48);
+    ctx.fillText(String(t.type || '???'), rightX + AV / 2, ay + AV + 48);
     ctx.font = `700 24px ${FONT_STACK}`;
-    ctx.fillStyle = COLORS.text;
-    const leftName = wrapLines(ctx, nameOf(m, m.type), AV + 30, 1);
-    const rightName = wrapLines(ctx, nameOf(t, t.type), AV + 30, 1);
-    if (leftName[0]) ctx.fillText(leftName[0], leftX + AV / 2, ay + AV + 80);
-    if (rightName[0]) ctx.fillText(rightName[0], rightX + AV / 2, ay + AV + 80);
+    ctx.fillStyle = theme.text;
+    const leftName = wrapLines(ctx, nameOf(m, m.type), AV + 40, 1);
+    const rightName = wrapLines(ctx, nameOf(t, t.type), AV + 40, 1);
+    if (leftName[0]) ctx.fillText(leftName[0], leftX + AV / 2, ay + AV + 84);
+    if (rightName[0]) ctx.fillText(rightName[0], rightX + AV / 2, ay + AV + 84);
 
-    // ---- 合拍指数（大字 + 进度条）----
-    let y = ay + AV + 170;
-    ctx.fillStyle = COLORS.textDim;
+    let y = ay + AV + 150;
+    ctx.fillStyle = theme.textDim;
     ctx.font = `600 24px ${FONT_STACK}`;
     ctx.fillText('合 拍 指 数', W / 2, y);
 
-    y += 100;
+    y += 90;
     const hasScore = typeof c.score === 'number';
-    ctx.fillStyle = COLORS.accent;
-    ctx.font = `800 110px ${FONT_STACK}`;
-    ctx.fillText(hasScore ? String(c.score) : '--', W / 2 - 24, y);
+    ctx.fillStyle = theme.accent;
+    ctx.font = `900 120px ${FONT_STACK}`;
+    const scoreText = hasScore ? String(c.score) : '--';
+    ctx.fillText(scoreText, W / 2 - 30, y);
     if (hasScore) {
-      ctx.font = `700 44px ${FONT_STACK}`;
-      ctx.fillText('%', W / 2 + 74, y - 44);
+      ctx.font = `700 48px ${FONT_STACK}`;
+      ctx.fillText('%', W / 2 + 80, y - 48);
     }
 
     if (hasScore) {
-      const BAR_W = 420;
+      const BAR_W = 440;
       const barX = (W - BAR_W) / 2;
       const barY = y + 36;
-      ctx.fillStyle = COLORS.panel;
-      ctx.fillRect(barX, barY, BAR_W, 12);
-      ctx.fillStyle = COLORS.accent;
-      ctx.fillRect(barX, barY, Math.max(0, Math.min(100, c.score)) / 100 * BAR_W, 12);
+      roundRectPath(ctx, barX, barY, BAR_W, 16, 8);
+      ctx.fillStyle = theme.panel;
+      ctx.fill();
+      const scoreRatio = Math.max(0, Math.min(100, c.score)) / 100;
+      roundRectPath(ctx, barX, barY, BAR_W * scoreRatio, 16, 8);
+      const barGrad = ctx.createLinearGradient(barX, barY, barX + BAR_W, barY);
+      barGrad.addColorStop(0, theme.accent);
+      barGrad.addColorStop(1, theme.accent2);
+      ctx.fillStyle = barGrad;
+      ctx.fill();
     }
 
-    // ---- 组合名 + verdict ----
-    y += hasScore ? 130 : 96;
-    ctx.fillStyle = COLORS.text;
-    ctx.font = `700 40px ${FONT_STACK}`;
+    y += hasScore ? 130 : 90;
+    ctx.fillStyle = theme.text;
+    ctx.font = `800 42px ${FONT_STACK}`;
     ctx.fillText(String(c.title || ''), W / 2, y);
 
-    y += 34;
-    ctx.fillStyle = COLORS.textDim;
-    ctx.font = `400 24px ${FONT_STACK}`;
-    y = drawCenteredLines(ctx, wrapLines(ctx, c.verdict, W - PAD * 2 - 40, 5), y + 10, 38);
+    y += 40;
+    const verdictBoxY = y;
+    const verdictBoxH = 220;
+    roundRectPath(ctx, PAD, verdictBoxY, W - PAD * 2, verdictBoxH, 20);
+    ctx.fillStyle = theme.panel;
+    ctx.fill();
+    ctx.strokeStyle = theme.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    // ---- 底部 ----
-    paintFooter(ctx, '测测你们是绝配还是互怼');
+    ctx.fillStyle = theme.textDim;
+    ctx.font = `400 24px ${FONT_STACK}`;
+    ctx.textAlign = 'center';
+    const verdictLines = wrapLines(ctx, c.verdict, W - PAD * 2 - 60, 5);
+    const verdictStartY = verdictBoxY + 36;
+    verdictLines.forEach((line, i) => {
+      ctx.fillText(line, W / 2, verdictStartY + i * 40);
+    });
+
+    paintFooter(ctx, theme, options.slogan || '测测你们是绝配还是互怼');
 
     return canvas;
   }
 
-  async function downloadCompat(mine, theirs, compat, filename) {
-    const canvas = await generateCompat(mine, theirs, compat);
+  async function downloadCompat(mine, theirs, compat, opts, filename) {
+    const options = typeof opts === 'string' ? { filename: opts } : (opts || {});
+    const canvas = await generateCompat(mine, theirs, compat, options);
     const mType = String((mine && mine.type) || 'me').toLowerCase();
     const tType = String((theirs && theirs.type) || 'ta').toLowerCase();
-    const name = filename || `nbti-compat-${mType}-${tType}.png`;
+    const name = filename || options.filename || `nbti-compat-${mType}-${tType}.png`;
     return new Promise((resolve) => {
       const done = url => {
         const link = document.createElement('a');
@@ -427,5 +516,35 @@
     });
   }
 
-  window.NBTIPoster = { generate, download, generateCompat, downloadCompat };
+  function generateCopyText(result, themeName, hashtags) {
+    const r = result || {};
+    const lines = [];
+    lines.push(`【${r.type || 'NBTI'} · ${r.name || '神秘人格'}】`);
+    if (r.oneline) {
+      lines.push(`"${r.oneline}"`);
+    }
+    lines.push('');
+    const traits = [];
+    if (r.scene) traits.push(`▫️ 名场面：${r.scene}`);
+    if (r.adapt) traits.push(`▫️ 适配：${r.adapt}`);
+    if (r.crash) traits.push(`▫️ 翻车：${r.crash}`);
+    if (traits.length) {
+      lines.push(...traits);
+      lines.push('');
+    }
+    const theme = themeName ? `#${themeName}` : '#NBTI人格测试';
+    const tags = hashtags || ['#人格测试', '#NBTI', '#职场人格'];
+    lines.push([theme, ...tags].join(' '));
+    return lines.join('\n');
+  }
+
+  window.NBTIPoster = {
+    THEMES,
+    getTheme,
+    generate,
+    download,
+    generateCompat,
+    downloadCompat,
+    generateCopyText
+  };
 })();

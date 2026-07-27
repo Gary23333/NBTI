@@ -7,6 +7,9 @@
   }[ch]));
   const pts = points => points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
 
+  const ANIMAL_TYPES = ['LION', 'FOX', 'OWL', 'DOLPHIN', 'DEER', 'CAT', 'WOLF', 'PENGUIN', 'OCTOPUS', 'SLOTH', 'BUTTERFLY', 'BEAR'];
+  const COLOR_TYPES = ['COLOR_RED', 'COLOR_BLUE', 'COLOR_GREEN', 'COLOR_YELLOW', 'COLOR_PURPLE', 'COLOR_ORANGE', 'COLOR_PINK', 'COLOR_TEAL'];
+
   const DEFAULT_THEMES = {
     NBTI: { primary: '#DC2626', secondary: '#991B1B', bg: '#FEE2E2', name: '卷王', accessories: ['briefcase', 'chart', 'flame', 'coffee'] },
     NBTP: { primary: '#2563EB', secondary: '#1E40AF', bg: '#DBEAFE', name: '棋手', accessories: ['chess', 'brain', 'ruler', 'target'] },
@@ -28,8 +31,30 @@
     hexagon: { primary: '#F59E0B', secondary: '#D97706', bg: '#FEF3C7', name: '六边形战士', accessories: ['star', 'flame', 'trophy', 'sword'], effect: 'golden' },
     buddha: { primary: '#F97316', secondary: '#EA580C', bg: '#FFF7ED', name: '职场活佛', accessories: ['zen', 'lotus', 'yin-yang', 'beads'], effect: 'buddha_light' },
     twoface: { primary: '#1F2937', secondary: '#F9FAFB', bg: '#D1D5DB', name: '职场双面人', accessories: ['mask', 'half-moon', 'moon', 'sunglasses'], effect: 'split' },
-    meme_lord: { primary: '#8B5CF6', secondary: '#7C3AED', bg: '#EDE9FE', name: '互联网嘴替', accessories: ['microphone', 'speech', 'keyboard', 'phone'], effect: 'barrage' }
+    meme_lord: { primary: '#8B5CF6', secondary: '#7C3AED', bg: '#EDE9FE', name: '互联网嘴替', accessories: ['microphone', 'speech', 'keyboard', 'phone'], effect: 'barrage' },
+    LION: { primary: '#D97706', secondary: '#92400E', bg: '#FEF3C7', name: '狮王', accessories: ['crown', 'flame', 'star', 'trophy'], effect: 'golden', animal: 'lion' },
+    FOX: { primary: '#EA580C', secondary: '#9A3412', bg: '#FFF7ED', name: '灵狐', accessories: ['lightning', 'brain', 'target', 'star'], animal: 'fox' },
+    OWL: { primary: '#78350F', secondary: '#451A03', bg: '#FEF3C7', name: '智者猫头鹰', accessories: ['book', 'glasses-round', 'zen', 'magnifier'], animal: 'owl' },
+    DOLPHIN: { primary: '#0EA5E9', secondary: '#0369A1', bg: '#E0F2FE', name: '海豚', accessories: ['wave', 'globe', 'star', 'music'], animal: 'dolphin' },
+    DEER: { primary: '#A16207', secondary: '#713F12', bg: '#FEF9C3', name: '灵鹿', accessories: ['leaf', 'flower', 'star', 'zen'], animal: 'deer' },
+    CAT: { primary: '#6B7280', secondary: '#374151', bg: '#F3F4F6', name: '喵星人', accessories: ['gamepad', 'guitar', 'sparkle', 'coffee'], animal: 'cat' },
+    WOLF: { primary: '#4B5563', secondary: '#1F2937', bg: '#F3F4F6', name: '孤狼', accessories: ['lightning', 'sword', 'shield', 'flame'], animal: 'wolf' },
+    PENGUIN: { primary: '#1F2937', secondary: '#111827', bg: '#DBEAFE', name: '企鹅', accessories: ['briefcase', 'check', 'tie', 'coffee'], animal: 'penguin' },
+    OCTOPUS: { primary: '#7C3AED', secondary: '#5B21B6', bg: '#EDE9FE', name: '章鱼博士', accessories: ['gear', 'laptop', 'calculator', 'brain'], animal: 'octopus' },
+    SLOTH: { primary: '#65A30D', secondary: '#3F6212', bg: '#ECFCCB', name: '树懒', accessories: ['coffee', 'clock', 'zen', 'leaf'], animal: 'sloth' },
+    BUTTERFLY: { primary: '#EC4899', secondary: '#BE185D', bg: '#FCE7F3', name: '蝴蝶', accessories: ['sparkle', 'flower', 'music', 'star'], animal: 'butterfly' },
+    BEAR: { primary: '#92400E', secondary: '#451A03', bg: '#FEF3C7', name: '熊大', accessories: ['heart', 'home', 'coin', 'muscle'], animal: 'bear' },
+    COLOR_RED: { primary: '#DC2626', secondary: '#991B1B', bg: '#FEE2E2', name: '红色人格', accessories: ['flame', 'heart', 'star', 'trophy'], effect: 'rainbow' },
+    COLOR_BLUE: { primary: '#2563EB', secondary: '#1E40AF', bg: '#DBEAFE', name: '蓝色人格', accessories: ['wave', 'globe', 'target', 'brain'], effect: 'glow' },
+    COLOR_GREEN: { primary: '#059669', secondary: '#047857', bg: '#D1FAE5', name: '绿色人格', accessories: ['leaf', 'bamboo', 'zen', 'lotus'], effect: 'glow' },
+    COLOR_YELLOW: { primary: '#CA8A04', secondary: '#A16207', bg: '#FEF9C3', name: '黄色人格', accessories: ['star', 'coin', 'crown', 'lightning'], effect: 'rainbow' },
+    COLOR_PURPLE: { primary: '#7C3AED', secondary: '#6D28D9', bg: '#EDE9FE', name: '紫色人格', accessories: ['sparkle', 'magic', 'star', 'music'], effect: 'glow' },
+    COLOR_ORANGE: { primary: '#EA580C', secondary: '#C2410C', bg: '#FFF7ED', name: '橙色人格', accessories: ['flame', 'medal', 'trophy', 'sun'], effect: 'rainbow' },
+    COLOR_PINK: { primary: '#EC4899', secondary: '#DB2777', bg: '#FCE7F3', name: '粉色人格', accessories: ['heart', 'flower', 'balloon', 'gift'], effect: 'glow' },
+    COLOR_TEAL: { primary: '#0D9488', secondary: '#0F766E', bg: '#CCFBF1', name: '青色人格', accessories: ['wave', 'leaf', 'globe', 'zen'], effect: 'glitch' }
   };
+
+  const EASTER_EGG_EFFECTS = ['rainbow', 'glow', 'glitch'];
 
   const LABEL_ACCESSORY = {
     金丝眼镜: 'glasses-gold', 圆框眼镜: 'glasses-round', 银框眼镜: 'glasses-silver', 老花镜: 'glasses-round', 墨镜: 'sunglasses', 护目镜: 'goggles',
@@ -287,7 +312,7 @@
     '❓': 'question', '🧪': 'beaker', '🌫️': 'mist', '⭐': 'star',
     '⚔️': 'sword', '🪷': 'lotus', '🎭': 'mask', '◐': 'half-moon',
     '🌓': 'moon', '🕶️': 'sunglasses', '🎤': 'microphone',
-    '💬': 'speech', '⌨️': 'keyboard'
+    '💬': 'speech', '⌨️': 'keyboard', '☀️': 'sun', '🪄': 'magic'
   };
 
   function iconPalette(theme) {
@@ -303,6 +328,207 @@
       green: '#22c55e',
       shadow: 'rgba(15,23,42,.22)'
     };
+  }
+
+  function renderAnimalHead(type, theme, uid) {
+    const p = iconPalette(theme);
+    const fill = theme.primary;
+    const dark = theme.secondary;
+    const light = '#f8fafc';
+    const line = '#111827';
+    let svg = '';
+
+    switch (type) {
+      case 'lion':
+        for (let i = 0; i < 12; i++) {
+          const angle = (Math.PI * 2 / 12) * i;
+          const x = Math.cos(angle) * 62;
+          const y = Math.sin(angle) * 58 - 8;
+          svg += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rand(14, 20)}" ry="${rand(20, 28)}" fill="${dark}" opacity="${rand(0.7, 0.95)}" transform="rotate(${(angle * 180 / Math.PI + 90).toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+        }
+        svg += `<ellipse cx="0" cy="-5" rx="38" ry="42" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-14" cy="-15" rx="8" ry="10" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="14" cy="-15" rx="8" ry="10" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="0" cy="5" rx="22" ry="18" fill="#fde68a" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-12" cy="-12" r="5" fill="${line}"/><circle cx="12" cy="-12" r="5" fill="${line}"/>`;
+        svg += `<circle cx="-10" cy="-13" r="1.8" fill="${light}"/><circle cx="14" cy="-13" r="1.8" fill="${light}"/>`;
+        svg += `<ellipse cx="0" cy="3" rx="6" ry="5" fill="${line}"/>`;
+        svg += `<path d="M-6 10Q0 18 6 10" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        svg += `<path d="M-8 8l-8 4M8 8l8 4" stroke="${line}" stroke-width="1.5" stroke-linecap="round"/>`;
+        break;
+
+      case 'fox':
+        svg += `<path d="M-45 -10L-30 -45L-10 -20Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M45 -10L30 -45L10 -20Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M-42 -8L-30 -38L-15 -20Z" fill="#fef3c7"/>`;
+        svg += `<path d="M42 -8L30 -38L15 -20Z" fill="#fef3c7"/>`;
+        svg += `<ellipse cx="0" cy="5" rx="40" ry="38" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M0 -20L-20 15L20 15Z" fill="#fef3c7" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-16" cy="-5" rx="7" ry="9" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="16" cy="-5" rx="7" ry="9" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-16" cy="-3" rx="4" ry="6" fill="${line}"/><ellipse cx="16" cy="-3" rx="4" ry="6" fill="${line}"/>`;
+        svg += `<ellipse cx="0" cy="12" rx="6" ry="5" fill="${line}"/>`;
+        svg += `<path d="M0 17Q-8 28 -15 22M0 17Q8 28 15 22" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`;
+        break;
+
+      case 'owl':
+        svg += `<ellipse cx="0" cy="0" rx="45" ry="48" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M-35 -20L-18 -42L-5 -22Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<path d="M35 -20L18 -42L5 -22Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<ellipse cx="-18" cy="-8" rx="16" ry="18" fill="${light}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="18" cy="-8" rx="16" ry="18" fill="${light}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<circle cx="-18" cy="-6" r="10" fill="${p.gold}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="18" cy="-6" r="10" fill="${p.gold}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-18" cy="-6" r="5" fill="${line}"/><circle cx="18" cy="-6" r="5" fill="${line}"/>`;
+        svg += `<circle cx="-16" cy="-8" r="2" fill="${light}"/><circle cx="20" cy="-8" r="2" fill="${light}"/>`;
+        svg += `<path d="M0 8L-8 20L0 16L8 20Z" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        for (let i = 0; i < 5; i++) {
+          const y = 25 + i * 8;
+          svg += `<path d="M-25 ${y}Q0 ${y + 5} 25 ${y}" fill="none" stroke="${dark}" stroke-width="1.5"/>`;
+        }
+        break;
+
+      case 'dolphin':
+        svg += `<ellipse cx="5" cy="5" rx="50" ry="35" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-25" cy="-5" rx="22" ry="20" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M-40 -10L-55 -30L-35 -5Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<path d="M40 10L65 -5L50 25Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<path d="M15 -25L20 -45L30 -20Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<ellipse cx="-32" cy="-8" rx="8" ry="6" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-32" cy="-8" r="3.5" fill="${line}"/>`;
+        svg += `<circle cx="-30" cy="-10" r="1.2" fill="${light}"/>`;
+        svg += `<path d="M-45 5Q-50 12 -42 15" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        svg += `<ellipse cx="-10" cy="10" rx="15" ry="8" fill="#fef3c7" opacity="0.7"/>`;
+        break;
+
+      case 'deer':
+        svg += `<path d="M-25 -35L-35 -60L-20 -40L-15 -55L-10 -38" fill="none" stroke="${dark}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+        svg += `<path d="M25 -35L35 -60L20 -40L15 -55L10 -38" fill="none" stroke="${dark}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+        svg += `<path d="M-35 -60L-45 -70M-35 -60L-40 -75M-20 -40L-28 -48M-15 -55L-10 -68M10 -38L8 -52" stroke="${dark}" stroke-width="2" stroke-linecap="round"/>`;
+        svg += `<path d="M35 -60L45 -70M35 -60L40 -75M20 -40L28 -48M15 -55L10 -68" stroke="${dark}" stroke-width="2" stroke-linecap="round"/>`;
+        svg += `<ellipse cx="0" cy="10" rx="32" ry="40" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-15" cy="-20" rx="10" ry="14" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="15" cy="-20" rx="10" ry="14" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-15" cy="-18" rx="5" ry="8" fill="#fecaca"/>`;
+        svg += `<ellipse cx="15" cy="-18" rx="5" ry="8" fill="#fecaca"/>`;
+        svg += `<ellipse cx="0" cy="20" rx="14" ry="12" fill="#fef3c7" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-12" cy="0" r="4" fill="${line}"/><circle cx="12" cy="0" r="4" fill="${line}"/>`;
+        svg += `<circle cx="-10" cy="-2" r="1.5" fill="${light}"/><circle cx="14" cy="-2" r="1.5" fill="${light}"/>`;
+        svg += `<ellipse cx="0" cy="15" rx="5" ry="4" fill="${line}"/>`;
+        svg += `<path d="M0 25Q-3 30 0 32Q3 30 0 25" fill="${line}"/>`;
+        break;
+
+      case 'cat':
+        svg += `<path d="M-38 -5L-28 -42L-8 -15Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M38 -5L28 -42L8 -15Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M-35 -8L-28 -36L-12 -17Z" fill="#fecaca"/>`;
+        svg += `<path d="M35 -8L28 -36L12 -17Z" fill="#fecaca"/>`;
+        svg += `<ellipse cx="0" cy="8" rx="38" ry="36" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-15" cy="0" rx="10" ry="12" fill="#a7f3d0" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="15" cy="0" rx="10" ry="12" fill="#a7f3d0" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-15" cy="2" rx="5" ry="8" fill="${line}"/><ellipse cx="15" cy="2" rx="5" ry="8" fill="${line}"/>`;
+        svg += `<circle cx="-13" cy="0" r="2" fill="${light}"/><circle cx="17" cy="0" r="2" fill="${light}"/>`;
+        svg += `<path d="M0 12L-5 18L5 18Z" fill="#f472b6" stroke="${line}" stroke-width="1"/>`;
+        svg += `<path d="M-20 10L-38 5M-20 15L-38 15M-20 20L-38 25" stroke="${line}" stroke-width="1" stroke-linecap="round"/>`;
+        svg += `<path d="M20 10L38 5M20 15L38 15M20 20L38 25" stroke="${line}" stroke-width="1" stroke-linecap="round"/>`;
+        svg += `<path d="M-4 20Q0 25 4 20" fill="none" stroke="${line}" stroke-width="1.5" stroke-linecap="round"/>`;
+        break;
+
+      case 'wolf':
+        svg += `<path d="M-42 -8L-32 -45L-12 -18Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M42 -8L32 -45L12 -18Z" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="0" cy="10" rx="38" ry="40" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M-25 5L-45 25L-20 20Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<path d="M25 5L45 25L20 20Z" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<ellipse cx="0" cy="20" rx="18" ry="15" fill="#d1d5db" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-14" cy="-5" rx="8" ry="10" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="14" cy="-5" rx="8" ry="10" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-14" cy="-4" r="4" fill="${line}"/><circle cx="14" cy="-4" r="4" fill="${line}"/>`;
+        svg += `<ellipse cx="0" cy="18" rx="6" ry="5" fill="${line}"/>`;
+        svg += `<path d="M-8 28L-3 25L0 30L3 25L8 28" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`;
+        svg += `<path d="M-10 20L-18 28M10 20L18 28" stroke="${line}" stroke-width="1.5"/>`;
+        break;
+
+      case 'penguin':
+        svg += `<ellipse cx="0" cy="15" rx="35" ry="48" fill="${line}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="0" cy="20" rx="25" ry="35" fill="${light}"/>`;
+        svg += `<ellipse cx="0" cy="-20" rx="28" ry="25" fill="${line}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-12" cy="-22" rx="8" ry="10" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="12" cy="-22" rx="8" ry="10" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-12" cy="-22" r="4" fill="${line}"/><circle cx="12" cy="-22" r="4" fill="${line}"/>`;
+        svg += `<path d="M0 -10L-8 0L0 5L8 0Z" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-18" cy="5" rx="10" ry="20" fill="${line}" stroke="${line}" stroke-width="1.5" transform="rotate(-15 -18 5)"/>`;
+        svg += `<ellipse cx="18" cy="5" rx="10" ry="20" fill="${line}" stroke="${line}" stroke-width="1.5" transform="rotate(15 18 5)"/>`;
+        svg += `<ellipse cx="-15" cy="60" rx="12" ry="6" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="15" cy="60" rx="12" ry="6" fill="#fbbf24" stroke="${line}" stroke-width="1.5"/>`;
+        break;
+
+      case 'octopus':
+        svg += `<ellipse cx="0" cy="-15" rx="42" ry="38" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="-15" cy="-20" rx="12" ry="14" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="15" cy="-20" rx="12" ry="14" fill="${light}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<circle cx="-15" cy="-18" r="6" fill="${line}"/><circle cx="15" cy="-18" r="6" fill="${line}"/>`;
+        svg += `<circle cx="-13" cy="-20" r="2" fill="${light}"/><circle cx="17" cy="-20" r="2" fill="${light}"/>`;
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI / 7) * i - Math.PI / 2;
+          const x = Math.cos(angle) * 35;
+          const y = Math.sin(angle) * 25 + 10;
+          const curl = rand(0.3, 0.7);
+          svg += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} Q${(x * 1.3).toFixed(1)} ${(y + 25).toFixed(1)} ${(x * curl).toFixed(1)} ${(y + 45).toFixed(1)}" fill="none" stroke="${fill}" stroke-width="10" stroke-linecap="round"/>`;
+          svg += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} Q${(x * 1.3).toFixed(1)} ${(y + 25).toFixed(1)} ${(x * curl).toFixed(1)} ${(y + 45).toFixed(1)}" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        }
+        svg += `<path d="M-8 -5Q0 5 8 -5" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        break;
+
+      case 'sloth':
+        svg += `<ellipse cx="0" cy="5" rx="45" ry="42" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="0" cy="15" rx="28" ry="25" fill="#d9f99d" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-22" cy="-18" rx="14" ry="12" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<ellipse cx="22" cy="-18" rx="14" ry="12" fill="${fill}" stroke="${line}" stroke-width="1.8"/>`;
+        svg += `<ellipse cx="-22" cy="-16" rx="8" ry="6" fill="#9ca3af"/>`;
+        svg += `<ellipse cx="22" cy="-16" rx="8" ry="6" fill="#9ca3af"/>`;
+        svg += `<ellipse cx="-12" cy="0" rx="10" ry="12" fill="${dark}" opacity="0.6"/>`;
+        svg += `<ellipse cx="12" cy="0" rx="10" ry="12" fill="${dark}" opacity="0.6"/>`;
+        svg += `<ellipse cx="-12" cy="2" rx="5" ry="6" fill="${line}"/><ellipse cx="12" cy="2" rx="5" ry="6" fill="${line}"/>`;
+        svg += `<circle cx="-10" cy="0" r="1.5" fill="${light}"/><circle cx="14" cy="0" r="1.5" fill="${light}"/>`;
+        svg += `<ellipse cx="0" cy="15" rx="7" ry="5" fill="${line}"/>`;
+        svg += `<path d="M-10 25Q0 30 10 25" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        svg += `<ellipse cx="-40" cy="35" rx="12" ry="8" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="40" cy="35" rx="12" ry="8" fill="${fill}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<path d="M-45 38L-52 48M-40 40L-45 50M-35 38L-38 48" stroke="${line}" stroke-width="1.5" stroke-linecap="round"/>`;
+        svg += `<path d="M45 38L52 48M40 40L45 50M35 38L38 48" stroke="${line}" stroke-width="1.5" stroke-linecap="round"/>`;
+        break;
+
+      case 'butterfly':
+        const wingColor1 = fill;
+        const wingColor2 = p.gold;
+        svg += `<ellipse cx="0" cy="5" rx="5" ry="35" fill="${dark}" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<path d="M0 -15Q-45 -35 -55 -5Q-45 20 -20 15Q-10 10 0 -5Z" fill="${wingColor1}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M0 -15Q45 -35 55 -5Q45 20 20 15Q10 10 0 -5Z" fill="${wingColor1}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M0 5Q-35 15 -45 35Q-25 45 -10 30Q-5 20 0 10Z" fill="${wingColor2}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<path d="M0 5Q35 15 45 35Q25 45 10 30Q5 20 0 10Z" fill="${wingColor2}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<circle cx="-35" cy="-15" r="5" fill="${light}" opacity="0.5"/>`;
+        svg += `<circle cx="35" cy="-15" r="5" fill="${light}" opacity="0.5"/>`;
+        svg += `<circle cx="-25" cy="25" r="4" fill="${light}" opacity="0.5"/>`;
+        svg += `<circle cx="25" cy="25" r="4" fill="${light}" opacity="0.5"/>`;
+        svg += `<path d="M0 -20Q-8 -35 -3 -38M0 -20Q8 -35 3 -38" stroke="${line}" stroke-width="1.5" stroke-linecap="round"/>`;
+        svg += `<circle cx="-3" cy="-38" r="2" fill="${line}"/><circle cx="3" cy="-38" r="2" fill="${line}"/>`;
+        break;
+
+      case 'bear':
+        svg += `<circle cx="-32" cy="-25" r="15" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<circle cx="32" cy="-25" r="15" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<circle cx="-32" cy="-25" r="8" fill="#d97706"/>`;
+        svg += `<circle cx="32" cy="-25" r="8" fill="#d97706"/>`;
+        svg += `<ellipse cx="0" cy="5" rx="42" ry="40" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+        svg += `<ellipse cx="0" cy="15" rx="22" ry="18" fill="#fef3c7" stroke="${line}" stroke-width="1.5"/>`;
+        svg += `<ellipse cx="-14" cy="-5" rx="7" ry="8" fill="${line}"/><ellipse cx="14" cy="-5" rx="7" ry="8" fill="${line}"/>`;
+        svg += `<circle cx="-12" cy="-7" r="2" fill="${light}"/><circle cx="16" cy="-7" r="2" fill="${light}"/>`;
+        svg += `<ellipse cx="0" cy="12" rx="8" ry="6" fill="${line}"/>`;
+        svg += `<path d="M-8 22Q0 30 8 22" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/>`;
+        break;
+    }
+    return svg;
   }
 
   function accessoryPath(type, p) {
@@ -389,7 +615,14 @@
         return `<path d="M-5 5V-9l13-3v14" fill="none" stroke="${line}" stroke-width="2" stroke-linecap="round"/><ellipse cx="-8" cy="7" rx="4" ry="3" fill="${fill}" stroke="${line}" stroke-width="1"/><ellipse cx="5" cy="4" rx="4" ry="3" fill="${fill}" stroke="${line}" stroke-width="1"/>`;
       case 'sparkle':
       case 'star':
-        return `<path d="M0-12l3.5 7.5L12-3 5.8 2.7 7.5 11 0 6.7-7.5 11l1.7-8.3L-12-3l8.5-1.5z" fill="${p.gold}" stroke="${line}" stroke-width="1.1" stroke-linejoin="round"/>`;
+      case 'sun':
+      case 'magic':
+        return type === 'sun'
+          ? `<circle cx="0" cy="0" r="7" fill="${p.gold}" stroke="${line}" stroke-width="1.1"/>${Array.from({length: 8}, (_, i) => {
+              const angle = (Math.PI * 2 / 8) * i;
+              return `<line x1="${Math.cos(angle) * 9}" y1="${Math.sin(angle) * 9}" x2="${Math.cos(angle) * 13}" y2="${Math.sin(angle) * 13}" stroke="${p.gold}" stroke-width="2" stroke-linecap="round"/>`;
+            }).join('')}`
+          : `<path d="M0-12l3.5 7.5L12-3 5.8 2.7 7.5 11 0 6.7-7.5 11l1.7-8.3L-12-3l8.5-1.5z" fill="${p.gold}" stroke="${line}" stroke-width="1.1" stroke-linejoin="round"/>`;
       case 'wrench':
       case 'screwdriver':
       case 'pliers':
@@ -523,6 +756,7 @@
         bg: preview.colors.bg,
         name: preview.name,
         effect: preview.effect || source.effect,
+        animal: source.animal,
         accessories: source.accessories || (source.emojis || []).map(item => EMOJI_ACCESSORY[item]).filter(Boolean)
       };
     }
@@ -551,26 +785,36 @@
     const theme = getTheme(personality, options);
     const size = options.size || 200;
     const uid = `av_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const face = faceContour(70, options.scale || 0.70);
+    const isAnimal = !!theme.animal;
+    const isColorPersonality = COLOR_TYPES.includes(personality);
+    const hasSpecialEffect = theme.effect && ['rainbow', 'glow', 'glitch', 'translucent', 'golden', 'buddha_light', 'split', 'barrage'].includes(theme.effect);
+
+    let face, eyes, leftEye, rightEye, lp, rp, hairColor, hairs, mouth;
+    if (!isAnimal) {
+      face = faceContour(70, options.scale || 0.70);
+      eyes = bothEyes(Math.max(16, face.width * rand(0.36, 0.46)));
+      const distance = rand(face.width / 4.6, face.width / 3.9);
+      const eyeY = -(face.height / rand(5.7, 7.4)) - 10;
+      leftEye = { x: -(distance + rand(-face.width / 20, face.width / 10)), y: eyeY + rand(-face.height / 50, face.height / 50) };
+      rightEye = { x: distance + rand(-face.width / 20, face.width / 10), y: eyeY + rand(-face.height / 50, face.height / 50) };
+      const pupil = contour => {
+        const upper = contour.slice(0, 80), lower = contour.slice(80).reverse();
+        const i0 = randInt(10, Math.max(11, upper.length - 10));
+        const i1 = randInt(10, Math.max(11, lower.length - 10));
+        const t = rand(0.2, 0.8);
+        return [upper[i0][0] * t + lower[i1][0] * (1 - t), upper[i0][1] * t + lower[i1][1] * (1 - t)];
+      };
+      lp = pupil(eyes.left.contour);
+      rp = pupil(eyes.right.contour);
+      const useRainbowHair = theme.effect === 'rainbow' || Math.random() > 0.88;
+      hairColor = personality === 'hexagon' ? '#D97706' : (personality === 'twoface' ? `url(#splitHair_${uid})` : (useRainbowHair ? `url(#rainbow_${uid})` : pick(naturalHairColors)));
+      hairs = generateHair(face.points);
+      mouth = mouthShape(face.height, face.width);
+    }
+
     const faceOpacity = theme.effect === 'translucent' ? 0.72 : 1;
-    const eyes = bothEyes(Math.max(16, face.width * rand(0.36, 0.46)));
-    const distance = rand(face.width / 4.6, face.width / 3.9);
-    const eyeY = -(face.height / rand(5.7, 7.4)) - 10;
-    const leftEye = { x: -(distance + rand(-face.width / 20, face.width / 10)), y: eyeY + rand(-face.height / 50, face.height / 50) };
-    const rightEye = { x: distance + rand(-face.width / 20, face.width / 10), y: eyeY + rand(-face.height / 50, face.height / 50) };
-    const pupil = contour => {
-      const upper = contour.slice(0, 80), lower = contour.slice(80).reverse();
-      const i0 = randInt(10, Math.max(11, upper.length - 10));
-      const i1 = randInt(10, Math.max(11, lower.length - 10));
-      const t = rand(0.2, 0.8);
-      return [upper[i0][0] * t + lower[i1][0] * (1 - t), upper[i0][1] * t + lower[i1][1] * (1 - t)];
-    };
-    const lp = pupil(eyes.left.contour), rp = pupil(eyes.right.contour);
-    const hairColor = personality === 'hexagon' ? '#D97706' : (personality === 'twoface' ? `url(#splitHair_${uid})` : (Math.random() > 0.12 ? pick(naturalHairColors) : `url(#rainbow_${uid})`));
-    const hairs = generateHair(face.points);
-    const mouth = mouthShape(face.height, face.width);
     const accessoryIcons = getAccessoryIcons(personality, theme, options);
-    const bg = Math.random() > 0.52 ? theme.bg : pick(bgAccents);
+    const bg = theme.effect === 'glitch' ? '#111827' : (Math.random() > 0.52 ? theme.bg : pick(bgAccents));
 
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 200 200" width="${size}" height="${size}" role="img" aria-label="${esc(theme.name || personality)} avatar">`;
     svg += `<defs>
@@ -578,52 +822,88 @@
         <feTurbulence baseFrequency="0.045" numOctaves="3" type="fractalNoise" result="noise"/>
         <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6"/>
       </filter>
-      <clipPath id="leftEye_${uid}"><polyline points="${pts(eyes.left.contour)}"/></clipPath>
-      <clipPath id="rightEye_${uid}"><polyline points="${pts(eyes.right.contour)}"/></clipPath>
-      <linearGradient id="rainbow_${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="${theme.primary}"/><stop offset="${randInt(20, 80)}%" stop-color="#22D3EE"/><stop offset="100%" stop-color="${theme.secondary}"/>
-      </linearGradient>
+      <filter id="glow_${uid}" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glitch_${uid}">
+        <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="1" result="noise">
+          <animate attributeName="baseFrequency" values="0.05;0.1;0.05" dur="0.5s" repeatCount="indefinite"/>
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>`;
+
+    if (!isAnimal) {
+      svg += `<clipPath id="leftEye_${uid}"><polyline points="${pts(eyes.left.contour)}"/></clipPath>
+      <clipPath id="rightEye_${uid}"><polyline points="${pts(eyes.right.contour)}"/></clipPath>`;
+    }
+
+    const rainbowColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+    const rainbowStops = rainbowColors.map((c, i) => `<stop offset="${(i / (rainbowColors.length - 1) * 100).toFixed(0)}%" stop-color="${c}"/>`).join('');
+    svg += `<linearGradient id="rainbow_${uid}" x1="0%" y1="0%" x2="100%" y2="100%">${rainbowStops}</linearGradient>
       <linearGradient id="splitHair_${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="49%" stop-color="#111827"/><stop offset="51%" stop-color="#F9FAFB"/>
       </linearGradient>
       <radialGradient id="halo_${uid}"><stop offset="0%" stop-color="${theme.primary}" stop-opacity=".45"/><stop offset="100%" stop-color="${theme.primary}" stop-opacity="0"/></radialGradient>
     </defs>`;
-    svg += `<rect x="-100" y="-100" width="200" height="200" fill="${bg}"/>`;
-    if (theme.effect === 'split') svg += `<rect x="0" y="-100" width="100" height="200" fill="${theme.secondary}" opacity=".28"/>`;
-    if (theme.effect === 'golden' || theme.effect === 'buddha_light' || theme.effect === 'glow') svg += `<circle cx="0" cy="-10" r="72" fill="url(#halo_${uid})"/>`;
-    svg += `<g opacity="${faceOpacity}">`;
-    svg += `<polyline id="faceContour" class="face-shape" points="${pts(face.points)}" fill="#ffc9a9" stroke="#111" stroke-width="2.2" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
 
-    const eyeGroup = (id, eye, pos, pupilPoint, clip) => {
-      svg += `<g id="${id}" transform="translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})">`;
-      svg += `<polyline points="${pts(eye.contour)}" fill="#fff" stroke="#fff" stroke-width="0" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
-      svg += `<polyline points="${pts(eye.upper)}" fill="none" stroke="#111" stroke-width="${rand(2.0, 3.3)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})"/>`;
-      svg += `<polyline points="${pts(eye.lower)}" fill="none" stroke="#111" stroke-width="${rand(1.8, 3.1)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})"/>`;
-      for (let i = 0; i < 10; i++) {
-        svg += `<circle r="${rand(2.3, 4.7)}" cx="${pupilPoint[0] + rand(-2.2, 2.2)}" cy="${pupilPoint[1] + rand(-2.2, 2.2)}" stroke="#111" fill="none" stroke-width="${rand(0.8, 1.4)}" filter="url(#fuzzy_${uid})" clip-path="url(#${clip})"/>`;
+    if (theme.effect === 'glitch') {
+      for (let i = 0; i < 3; i++) {
+        const offset = rand(-6, 6);
+        svg += `<rect x="${offset.toFixed(1)}" y="${(-offset).toFixed(1)}" width="200" height="200" fill="${i === 0 ? '#ef4444' : i === 1 ? '#3b82f6' : '#22c55e'}" opacity="0.08"/>`;
       }
-      svg += `</g>`;
-    };
-    eyeGroup('leftEye', eyes.left, leftEye, lp, `leftEye_${uid}`);
-    eyeGroup('rightEye', eyes.right, rightEye, rp, `rightEye_${uid}`);
-
-    svg += `<g id="hairs">`;
-    hairs.forEach(h => {
-      const shifted = h.map(p => [p[0], p[1] - rand(0, 2)]);
-      svg += `<polyline points="${pts(shifted)}" fill="none" stroke="${hairColor}" stroke-width="${rand(0.7, 2.6)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})" opacity="${rand(0.75, 1)}"/>`;
-    });
-    svg += `</g>`;
-
-    const noseRight = [rand(face.width / 18, face.width / 12), rand(-3, face.height / 5) - 6];
-    const noseLeft = [rand(-face.width / 18, -face.width / 12), noseRight[1] + rand(-face.height / 30, face.height / 20)];
-    if (Math.random() > 0.5) {
-      [noseLeft, noseRight].forEach(nose => {
-        for (let i = 0; i < 10; i++) svg += `<circle r="${rand(0.8, 2.5)}" cx="${nose[0] + rand(-1.8, 1.8)}" cy="${nose[1] + rand(-1.8, 1.8)}" stroke="#111" fill="none" stroke-width="${rand(0.8, 1.3)}" filter="url(#fuzzy_${uid})"/>`;
-      });
-    } else {
-      svg += `<path d="M ${noseLeft[0]} ${noseLeft[1]} Q ${noseRight[0]} ${noseRight[1] * 1.5}, ${(noseLeft[0] + noseRight[0]) / 2} ${-eyeY * 0.18}" fill="none" stroke="#111" stroke-width="${rand(2.1, 3.2)}" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
     }
-    svg += `<polyline points="${pts(mouth)}" fill="rgb(215,127,140)" stroke="#111" stroke-width="${rand(2.3, 3.1)}" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
+    svg += `<rect x="-100" y="-100" width="200" height="200" fill="${bg}"/>`;
+
+    if (theme.effect === 'split') svg += `<rect x="0" y="-100" width="100" height="200" fill="${theme.secondary}" opacity=".28"/>`;
+    if (theme.effect === 'golden' || theme.effect === 'buddha_light' || theme.effect === 'glow') {
+      svg += `<circle cx="0" cy="-10" r="72" fill="url(#halo_${uid})"/>`;
+    }
+    if (theme.effect === 'rainbow') {
+      for (let i = 0; i < 6; i++) {
+        const r = 80 - i * 8;
+        svg += `<circle cx="0" cy="-8" r="${r}" fill="none" stroke="${rainbowColors[i]}" stroke-width="4" opacity="0.25"/>`;
+      }
+    }
+
+    svg += `<g opacity="${faceOpacity}"${theme.effect === 'glow' ? ` filter="url(#glow_${uid})"` : ''}${theme.effect === 'glitch' ? ` filter="url(#glitch_${uid})"` : ''}>`;
+
+    if (isAnimal) {
+      svg += renderAnimalHead(theme.animal, theme, uid);
+    } else {
+      svg += `<polyline id="faceContour" class="face-shape" points="${pts(face.points)}" fill="#ffc9a9" stroke="#111" stroke-width="2.2" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
+
+      const eyeGroup = (id, eye, pos, pupilPoint, clip) => {
+        svg += `<g id="${id}" transform="translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})">`;
+        svg += `<polyline points="${pts(eye.contour)}" fill="#fff" stroke="#fff" stroke-width="0" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
+        svg += `<polyline points="${pts(eye.upper)}" fill="none" stroke="#111" stroke-width="${rand(2.0, 3.3)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})"/>`;
+        svg += `<polyline points="${pts(eye.lower)}" fill="none" stroke="#111" stroke-width="${rand(1.8, 3.1)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})"/>`;
+        for (let i = 0; i < 10; i++) {
+          svg += `<circle r="${rand(2.3, 4.7)}" cx="${pupilPoint[0] + rand(-2.2, 2.2)}" cy="${pupilPoint[1] + rand(-2.2, 2.2)}" stroke="#111" fill="none" stroke-width="${rand(0.8, 1.4)}" filter="url(#fuzzy_${uid})" clip-path="url(#${clip})"/>`;
+        }
+        svg += `</g>`;
+      };
+      eyeGroup('leftEye', eyes.left, leftEye, lp, `leftEye_${uid}`);
+      eyeGroup('rightEye', eyes.right, rightEye, rp, `rightEye_${uid}`);
+
+      svg += `<g id="hairs">`;
+      hairs.forEach(h => {
+        const shifted = h.map(p => [p[0], p[1] - rand(0, 2)]);
+        svg += `<polyline points="${pts(shifted)}" fill="none" stroke="${hairColor}" stroke-width="${rand(0.7, 2.6)}" stroke-linejoin="round" stroke-linecap="round" filter="url(#fuzzy_${uid})" opacity="${rand(0.75, 1)}"/>`;
+      });
+      svg += `</g>`;
+
+      const noseRight = [rand(face.width / 18, face.width / 12), rand(-3, face.height / 5) - 6];
+      const noseLeft = [rand(-face.width / 18, -face.width / 12), noseRight[1] + rand(-face.height / 30, face.height / 20)];
+      if (Math.random() > 0.5) {
+        [noseLeft, noseRight].forEach(nose => {
+          for (let i = 0; i < 10; i++) svg += `<circle r="${rand(0.8, 2.5)}" cx="${nose[0] + rand(-1.8, 1.8)}" cy="${nose[1] + rand(-1.8, 1.8)}" stroke="#111" fill="none" stroke-width="${rand(0.8, 1.3)}" filter="url(#fuzzy_${uid})"/>`;
+        });
+      } else {
+        svg += `<path d="M ${noseLeft[0]} ${noseLeft[1]} Q ${noseRight[0]} ${noseRight[1] * 1.5}, ${(noseLeft[0] + noseRight[0]) / 2} ${-(-(face.height / rand(5.7, 7.4)) - 10) * 0.18}" fill="none" stroke="#111" stroke-width="${rand(2.1, 3.2)}" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
+      }
+      svg += `<polyline points="${pts(mouth)}" fill="rgb(215,127,140)" stroke="#111" stroke-width="${rand(2.3, 3.1)}" stroke-linejoin="round" filter="url(#fuzzy_${uid})"/>`;
+    }
     svg += `</g>`;
 
     function generateAccessoryPositions(count, fw, fh) {
@@ -638,18 +918,28 @@
       }
       return positions;
     }
-    const visibleIcons = accessoryIcons.slice(0, 7);
-    const positions = generateAccessoryPositions(visibleIcons.length, face.width, face.height);
+    const visibleIcons = accessoryIcons.slice(0, isAnimal ? 5 : 7);
+    const positions = generateAccessoryPositions(visibleIcons.length, isAnimal ? 60 : 35, isAnimal ? 60 : 40);
     visibleIcons.forEach((icon, i) => {
       const [x, y] = positions[i];
       svg += renderAccessoryIcon(icon, x, y, rand(22, 38), rand(-12, 12), theme);
     });
     if (theme.effect === 'barrage') {
-      const barragePositions = generateAccessoryPositions(3, face.width, face.height);
+      const barragePositions = generateAccessoryPositions(3, 35, 40);
       ['speech', 'keyboard', 'sparkle'].forEach((type, i) => {
         const [x, y] = barragePositions[i];
         svg += renderAccessoryIcon(type, x, y, rand(22, 34), rand(-10, 10), theme);
       });
+    }
+    if (theme.effect === 'rainbow') {
+      for (let i = 0; i < 8; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const r = rand(55, 75);
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        const starColor = rainbowColors[i % rainbowColors.length];
+        svg += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rand(0, 360).toFixed(1)}) scale(0.6)"><path d="M0-8l2 5 6 1-4.5 4 1 6-4.5-3-4.5 3 1-6L-8-2l6-1z" fill="${starColor}" opacity="0.8"/></g>`;
+      }
     }
     svg += `</svg>`;
     return svg;
@@ -657,6 +947,8 @@
 
   window.NBTIAvatar = {
     themes: DEFAULT_THEMES,
+    animalTypes: ANIMAL_TYPES,
+    colorTypes: COLOR_TYPES,
     generateSvgAvatar
   };
 })();

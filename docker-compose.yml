@@ -7,8 +7,16 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/app/data
+      - ./logs:/app/logs
     environment:
+      - NBTI_ADMIN_TOKEN=${NBTI_ADMIN_TOKEN:-}
       - NBTI_API_KEY_LONGCAT=${NBTI_API_KEY_LONGCAT:-}
       - NBTI_API_KEY_DEEPSEEK_V4_FLASH=${NBTI_API_KEY_DEEPSEEK_V4_FLASH:-}
       - NBTI_API_KEY_DOUBAO=${NBTI_API_KEY_DOUBAO:-}
+      - NBTI_API_KEY_LM_STUDIO=${NBTI_API_KEY_LM_STUDIO:-lm-studio}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8081/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

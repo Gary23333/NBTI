@@ -46,6 +46,24 @@ class ConversationStore:
             data['scenes'] = scenes
             self._write(conversation_id, data)
 
+    def get_theme(self, conversation_id):
+        return self._read(conversation_id).get('theme', 'workplace')
+
+    def set_theme(self, conversation_id, theme_id):
+        with self.lock:
+            data = self._read(conversation_id)
+            data['theme'] = theme_id
+            self._write(conversation_id, data)
+
+    def get_style(self, conversation_id):
+        return self._read(conversation_id).get('style', '暴躁老油条')
+
+    def set_style(self, conversation_id, style_name):
+        with self.lock:
+            data = self._read(conversation_id)
+            data['style'] = style_name
+            self._write(conversation_id, data)
+
     def get_preload_draft(self, conversation_id, message):
         return self._read(conversation_id).get('preloads', {}).get(message)
 

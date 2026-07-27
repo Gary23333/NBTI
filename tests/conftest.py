@@ -3,7 +3,17 @@ import os
 import json
 import tempfile
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """每个测试前重置 IP 限流器，避免 127.0.0.1 在全量跑时累计触发 429"""
+    from nbti.app import _rate_limiter
+    _rate_limiter.reset()
+    yield
 
 
 def make_minimal_config(min_q=20, max_q=25):

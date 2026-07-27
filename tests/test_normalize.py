@@ -52,9 +52,9 @@ class TestNormalizeAnswerQuestion:
         assert json.loads(result)["next_dim"] == "BH"
 
     def test_corrects_wrong_rotation_at_min_when_not_concluding(self):
-        result = self.call_normalize(make_answer(20, "NB", can_conclude=False), 20)
+        result = self.call_normalize(make_answer(12, "NB", can_conclude=False), 12)
         data = json.loads(result)
-        assert data["next_dim"] == "IP", f"Q20 should be IP, got {data['next_dim']}"
+        assert data["next_dim"] == "IP", f"Q12 should be IP, got {data['next_dim']}"
 
     def test_keeps_end_when_concluding_at_min(self):
         answer = make_answer(20, "END", can_conclude=True)

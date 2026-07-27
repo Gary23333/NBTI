@@ -10,6 +10,7 @@ data/config.json
 
 # --- 运行时数据 ---
 data/conversations/
+data/shares/
 
 # --- macOS ---
 .DS_Store

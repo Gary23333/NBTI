@@ -5,7 +5,7 @@ import requests
 
 from nbti.utils import (
     normalize_answer_question, parse_answer_meta, extract_scene_summary,
-    commit_answer_to_history
+    commit_answer_to_history, is_complete_assess, parse_json_answer
 )
 from nbti.conversation import store
 
@@ -152,6 +152,14 @@ def build_response_format(profile, phase):
     }
 
 
+def _is_valid_final_answer(answer, phase, expected_q=None):
+    """校验流式最终答案是否完整可入库：assess/init 校验题号与结构，result 校验 RESULT JSON"""
+    if phase == 'result':
+        data = parse_json_answer(answer)
+        return isinstance(data, dict) and data.get('phase') == 'RESULT'
+    return is_complete_assess(answer, expected_q)
+
+
 def stream_generator(profile, payload, conversation_id=None, history=None, message=None, phase=None, save_history=False, config=None):
     """流式生成器：读取 LLM 响应并转发给客户端
     
@@ -234,8 +242,13 @@ def stream_generator(profile, payload, conversation_id=None, history=None, messa
             full_answer = normalize_answer_question(full_answer, expected_q, config)
 
             # 先保存历史，再通知前端完成，避免用户快速点击下一题时读到旧历史。
+            # 残缺/非预期 JSON 的答案不入库，避免污染后续上下文（done 事件照常发，前端有重试机制）。
             if save_history and conversation_id and history is not None and message:
-                commit_answer_to_history(conversation_id, message, full_answer, phase)
+                if _is_valid_final_answer(full_answer, phase, expected_q):
+                    commit_answer_to_history(conversation_id, message, full_answer, phase)
+                else:
+                    logger.warning(f"[STREAM] 残缺答案不入库 | conversation_id={conversation_id} | "
+                                   f"phase={phase} | answer_preview={full_answer[:80]}...")
 
             done_event = {
                 "event": "done",

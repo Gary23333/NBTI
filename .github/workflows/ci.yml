@@ -17,14 +17,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Check frontend JS syntax
+        run: |
+          node --check app.js
+          node --check avatar-generator.js
+          node --check radar-chart.js
+          node --check share-poster.js
+          node --check compat-data.js
+          node --check sw.js
       - name: Run tests
         run: |
+          # tests/e2e：Playwright 手工端到端测试，需人工启动完整环境，CI 不跑
+          # tests/test_deepseek.py：模块级请求 localhost:8081 实跑服务，CI 无该服务，保留 ignore
+          # tests/test_preload.py：依赖 localhost:8080 实跑服务，CI 无该服务，保留 ignore
           pytest tests/ -v --tb=short \
             --ignore=tests/e2e \
             --ignore=tests/test_deepseek.py \
-            --ignore=tests/test_longcat_presets.py \
             --ignore=tests/test_preload.py

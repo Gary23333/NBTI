@@ -71,8 +71,9 @@ DEFAULT_CONFIG = {
         "assess": "LM Studio Gemma E4B",
         "result": "豆包 lite 无思考"
     },
-    "max_questions": 25,
-    "min_questions": 20,
+    "max_questions": 16,
+    "min_questions": 12,
+    "preload_enabled": True,
     "easter_egg_enabled": True,
     "active_preset": "暴躁老油条",
     "prompt_presets": get_prompt_presets(),

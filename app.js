@@ -4,9 +4,36 @@ let conversationId = '';
 let currentQuestion = 0;
 let totalQuestions = 25;
 let scores = { nb: 0, bh: 0, tf: 0, ip: 0 };
+// 最近一次测评结果（showResult 解析后赋值），供分享海报 / 分享链接使用
+let currentResult = null;
 let nextDim = 'NB';
 let canConclude = false;
 let answerLocked = false;
+// 题目生成不完整的连续重试计数（成功渲染一题后清零）
+let incompleteRetryCount = 0;
+const MAX_INCOMPLETE_RETRIES = 3;
+
+// 题量配置：页面加载时从 /api/config 拉取一次缓存，失败回退 12/16
+let minQuestions = 12;
+let maxQuestions = 16;
+let configLoaded = false;
+// 预载开关：/api/config 的 preload_enabled 控制，缺省 true（与现状等价）
+let preloadEnabled = true;
+
+async function loadConfig() {
+  if (configLoaded) return;
+  configLoaded = true;
+  try {
+    const resp = await fetch(`${API_URL}/config`);
+    const cfg = await resp.json();
+    if (typeof cfg.min_questions === 'number' && cfg.min_questions > 0) minQuestions = cfg.min_questions;
+    if (typeof cfg.max_questions === 'number' && cfg.max_questions > 0) maxQuestions = cfg.max_questions;
+    if (typeof cfg.preload_enabled === 'boolean') preloadEnabled = cfg.preload_enabled;
+  } catch (e) {
+    // 配置拉取失败，保持默认值
+  }
+}
+loadConfig();
 
 function escHtml(str) {
   if (typeof str !== 'string') return '';
@@ -261,23 +288,23 @@ function renderQuestionIncremental(partialData, options = [], settings = {}) {
   if (options.length > 0) {
     const letters = ['A', 'B', 'C', 'D'];
     options.slice(0, 4).forEach((opt, i) => {
+      const optText = typeof opt === 'string' ? opt : '';
       const existingBtn = optionsContainer.children[i];
-      const safeOpt = typeof opt === 'string' ? opt.replace(/'/g, "\\'").replace(/"/g, '&quot;') : '';
-      const optionText = escHtml(typeof opt === 'string' ? opt : '');
+      const optionText = escHtml(optText);
       if (existingBtn) {
-        existingBtn.dataset.optionText = typeof opt === 'string' ? opt : '';
+        existingBtn.dataset.optionText = optText;
         existingBtn.disabled = !settings.enableOptions;
         existingBtn.innerHTML = `<span class="letter">${letters[i]}</span>${optionText}`;
-        existingBtn.onclick = () => selectOption(letters[i], safeOpt);
+        existingBtn.onclick = () => selectOption(letters[i], optText);
         return;
       }
 
       const btn = document.createElement('button');
       btn.className = 'option-btn';
-      btn.dataset.optionText = typeof opt === 'string' ? opt : '';
+      btn.dataset.optionText = optText;
       btn.disabled = !settings.enableOptions;
       btn.innerHTML = `<span class="letter">${letters[i]}</span>${optionText}`;
-      btn.onclick = () => selectOption(letters[i], safeOpt);
+      btn.addEventListener('click', () => selectOption(letters[i], optText));
       optionsContainer.appendChild(btn);
     });
     setTimeout(() => optionsContainer.style.opacity = '1', 100);
@@ -346,8 +373,8 @@ async function startTest() {
   await sendMessage('开始测试');
 }
 
-const preloadCache = {};
-const preloadMessageMap = {};
+let preloadCache = {};
+let preloadMessageMap = {};
 let preloadVersion = 0;
 let activeQuestionRequestId = 0;
 
@@ -439,6 +466,7 @@ function showLoadingAnimation() {
 }
 
 function preloadNextQuestions(options) {
+  if (!preloadEnabled) return;
   options = normalizeOptions(options);
   if (!conversationId || !options.length) return;
 
@@ -514,7 +542,7 @@ function showStreamingQuestionShell() {
     progressText.textContent = `第 ${nextQuestion} 题`;
   }
   if (progressFill) {
-    progressFill.style.width = `${Math.min(nextQuestion * 5, 85)}%`;
+    progressFill.style.width = `${Math.min(nextQuestion / maxQuestions * 100, 100)}%`;
   }
 
   questionArea.innerHTML = `
@@ -629,12 +657,15 @@ async function sendMessage(message) {
       const questionArea = document.getElementById('question-area');
       questionArea.innerHTML = `
         <div class="question-card">
-          <p style="color: var(--danger);">❌ 加载失败: ${fallbackError.message || error.message}</p>
-          <button class="btn btn-outline" onclick="sendMessage('${message}')" style="margin-top: 12px;">
-            重试
-          </button>
+          <p style="color: var(--danger);">❌ 加载失败: ${escHtml(fallbackError.message || error.message || '未知错误')}</p>
         </div>
       `;
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'btn btn-outline';
+      retryBtn.style.marginTop = '12px';
+      retryBtn.textContent = '重试';
+      retryBtn.addEventListener('click', () => sendMessage(message));
+      questionArea.querySelector('.question-card').appendChild(retryBtn);
     }
   }
 }
@@ -678,12 +709,23 @@ async function handleStreamResponse(response, requestId, originalMessage) {
       const data = parseIncrementalJson(trimmed);
       if (!data) continue;
 
-      if (data.event === 'error' || data.error) {
-        throw new Error(data.error || '流式输出失败');
-      }
-
       if (data.conversation_id) {
         conversationIdFromStream = data.conversation_id;
+      }
+
+      // done 事件优先判断，避免完整答案被当作 chunk 再追加一次
+      if (data.event === 'done' || data.type === 'done' || data.done) {
+        if (data.answer) {
+          fullAnswer = data.answer;
+        }
+        if (data.options) {
+          options = data.options;
+        }
+        break;
+      }
+
+      if (data.event === 'error' || data.error) {
+        throw new Error(data.error || '流式输出失败');
       }
 
       if (data.event === 'first_token' || data.type === 'first_token' || (!receivedFirstToken && data)) {
@@ -698,7 +740,7 @@ async function handleStreamResponse(response, requestId, originalMessage) {
       if (data.event === 'chunk' || data.type === 'chunk' || data.answer || data.content) {
         const chunk = data.answer || data.content || data.chunk || '';
         fullAnswer += chunk;
-        
+
         const partialObj = buildPartialObject(fullAnswer);
         if (partialObj.phase === 'ASSESS') {
           partialObj.q = expectedQuestion;
@@ -709,7 +751,7 @@ async function handleStreamResponse(response, requestId, originalMessage) {
         } else if (partialObj.comment || partialObj.scene || partialOptions.length) {
           renderQuestionIncremental(partialObj, partialOptions, { enableOptions: false });
         }
-        
+
         if (data.options) {
           options = data.options;
           if (currentQuestion === 0 && partialObj.comment) {
@@ -718,16 +760,6 @@ async function handleStreamResponse(response, requestId, originalMessage) {
             renderQuestionIncremental(partialObj, options, { enableOptions: false });
           }
         }
-      }
-
-      if (data.event === 'done' || data.type === 'done' || data.done) {
-        if (data.answer) {
-          fullAnswer = data.answer;
-        }
-        if (data.options) {
-          options = data.options;
-        }
-        break;
       }
     }
   }
@@ -766,6 +798,7 @@ function processFinalAnswer(answerText, options, requestId, settings = {}) {
   const finalOptions = normalizeOptions(options && options.length > 0 ? options : parsedOptions);
 
   if (tags.PHASE === 'RESULT') {
+    incompleteRetryCount = 0;
     showResult(answerText, tags);
     answerLocked = false;
     return;
@@ -774,7 +807,26 @@ function processFinalAnswer(answerText, options, requestId, settings = {}) {
   const expectedQuestion = currentQuestion > 0 ? currentQuestion + 1 : 1;
   if (!isCompleteAssess(tags, body, finalOptions, expectedQuestion)) {
     answerLocked = false;
+    incompleteRetryCount++;
     const questionArea = document.getElementById('question-area');
+    if (incompleteRetryCount > MAX_INCOMPLETE_RETRIES) {
+      // 连续重试超限，展示用户可见错误卡片，等待手动重试
+      questionArea.innerHTML = `
+        <div class="question-card">
+          <p style="color: var(--danger);">AI 状态不佳，请稍后重试</p>
+        </div>
+      `;
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'btn btn-outline';
+      retryBtn.style.marginTop = '12px';
+      retryBtn.textContent = '重试';
+      retryBtn.addEventListener('click', () => {
+        incompleteRetryCount = 0;
+        sendMessage(settings.retryMessage || '请重新生成这一题');
+      });
+      questionArea.querySelector('.question-card').appendChild(retryBtn);
+      return;
+    }
     questionArea.innerHTML = `
       <div class="question-card">
         <p style="color: var(--danger);">题目生成不完整，正在重试...</p>
@@ -785,6 +837,9 @@ function processFinalAnswer(answerText, options, requestId, settings = {}) {
     }
     return;
   }
+
+  // 成功渲染一题，清零重试计数
+  incompleteRetryCount = 0;
 
   canConclude = tags.CAN_CONCLUDE === 'true';
 
@@ -814,6 +869,7 @@ function processFinalAnswer(answerText, options, requestId, settings = {}) {
     renderQuestion(body, finalOptions, tags);
   }
   answerLocked = false;
+  saveSessionSnapshot(answerText);
 }
 
 let firstQuestionCache = null;
@@ -824,7 +880,7 @@ function renderIntro(intro, scene, options, tags) {
   questionArea.innerHTML = `
     <div class="question-card" style="text-align: center; padding: 48px 24px;">
       <div style="font-size: 3.5rem; margin-bottom: 20px;">🎉</div>
-      <div class="question-text" style="font-size: 1.15rem; line-height: 1.9; margin-bottom: 40px; color: var(--text);">${intro.replace(/\n/g, '<br>')}</div>
+      <div class="question-text" style="font-size: 1.15rem; line-height: 1.9; margin-bottom: 40px; color: var(--text);">${escHtml(intro).replace(/\n/g, '<br>')}</div>
       <button class="btn btn-primary" onclick="showFirstQuestion()" style="padding: 14px 48px; font-size: 1.05rem;">
         开始答题 →
       </button>
@@ -864,29 +920,27 @@ function renderQuestion(body, options, tags, settings = {}) {
     }
   }
 
-  let optionsHtml = '';
-  const letters = ['A', 'B', 'C', 'D'];
-  normalizedOptions.forEach((opt, i) => {
-    const safeOpt = typeof opt === 'string' ? opt.replace(/'/g, "\\'").replace(/"/g, '&quot;') : '';
-    optionsHtml += `
-      <button class="option-btn" onclick="selectOption('${letters[i]}', '${safeOpt}')">
-        <span class="letter">${letters[i]}</span>
-        ${escHtml(typeof opt === 'string' ? opt : '')}
-      </button>
-    `;
-  });
-
   questionArea.innerHTML = `
     ${commentHtml}
     <div class="question-card">
       <div class="question-label">第 ${currentQuestion} 题</div>
       <div class="question-text">${escHtml(sceneText)}</div>
     </div>
-    <div class="options">
-      ${optionsHtml}
-    </div>
+    <div class="options" id="final-options"></div>
     <div id="preload-status" class="preload-status-container"></div>
   `;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  const optionsContainer = document.getElementById('final-options');
+  normalizedOptions.forEach((opt, i) => {
+    const optText = typeof opt === 'string' ? opt : '';
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.dataset.optionText = optText;
+    btn.innerHTML = `<span class="letter">${letters[i]}</span>${escHtml(optText)}`;
+    btn.addEventListener('click', () => selectOption(letters[i], optText));
+    optionsContainer.appendChild(btn);
+  });
 
   if (!settings.skipPreload) {
     preloadNextQuestions(normalizedOptions);
@@ -934,6 +988,7 @@ async function selectOption(letter, text) {
     nextDim = tags.NEXT_DIM || nextDim;
 
     renderQuestion(body, options, tags, { skipPreload: true });
+    saveSessionSnapshot(cachedAnswer);
 
     try {
       const response = await fetch(`${API_URL}/chat/preload/commit`, {
@@ -973,12 +1028,73 @@ async function selectOption(letter, text) {
 }
 
 function updateProgress() {
-  const percent = Math.min(currentQuestion * 5, 85);
+  const percent = Math.min(currentQuestion / maxQuestions * 100, 100);
   document.getElementById('progress-fill').style.width = `${percent}%`;
   document.getElementById('progress-text').textContent = `第 ${currentQuestion} 题`;
 }
 
+// ---- 断点续测：会话快照（localStorage，后端会话保留 24h） ----
+
+const SESSION_STORAGE_KEY = 'nbti-session';
+
+function saveSessionSnapshot(lastAnswer) {
+  try {
+    if (!conversationId || typeof lastAnswer !== 'string' || !lastAnswer) return;
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+      conversationId,
+      currentQuestion,
+      scores,
+      nextDim,
+      canConclude,
+      lastAnswer
+    }));
+  } catch (e) {
+    // localStorage 不可用（隐私模式等）时静默跳过
+  }
+}
+
+function clearSessionSnapshot() {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (e) {}
+}
+
+function restoreSessionSnapshot() {
+  let snapshot = null;
+  try {
+    snapshot = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+  } catch (e) {
+    snapshot = null;
+  }
+
+  if (!snapshot || !snapshot.conversationId || typeof snapshot.lastAnswer !== 'string' || !snapshot.lastAnswer) {
+    clearSessionSnapshot();
+    return;
+  }
+
+  try {
+    // 快照只应保存 ASSESS 题（RESULT 在 showResult 时已清除），其它内容视为损坏
+    if (parseResponse(snapshot.lastAnswer).tags.PHASE !== 'ASSESS') {
+      clearSessionSnapshot();
+      return;
+    }
+    conversationId = snapshot.conversationId;
+    // processFinalAnswer 内部按 currentQuestion + 1 校验题号，回退一题即可通过校验并由它重新写回正确题号
+    currentQuestion = Math.max((parseInt(snapshot.currentQuestion) || 1) - 1, 0);
+    scores = { nb: 0, bh: 0, tf: 0, ip: 0, ...(snapshot.scores || {}) };
+    nextDim = snapshot.nextDim || 'NB';
+    canConclude = snapshot.canConclude === true;
+    answerLocked = false;
+    showPage('page-test');
+    processFinalAnswer(snapshot.lastAnswer, [], ++activeQuestionRequestId, { skipIntro: true });
+  } catch (e) {
+    clearSessionSnapshot();
+    restart();
+  }
+}
+
 function showResult(answer, tags) {
+  clearSessionSnapshot();
   showPage('page-result');
 
   const resultArea = document.getElementById('result-area');
@@ -1019,6 +1135,12 @@ function showResult(answer, tags) {
     }
   }
 
+  // 解析完成后统一落盘全局，供分享海报 / 分享链接使用（覆盖 object/string 两分支）
+  currentResult = {
+    type, name, oneline, scene, adapt, crash,
+    interpretation, pseudo_science: pseudoScience, closing
+  };
+
   const fmt = (text) => escHtml(text).replace(/\n/g, '<br>');
 
   let metaHtml = '';
@@ -1034,6 +1156,11 @@ function showResult(answer, tags) {
     <div class="oneline">"${escHtml(oneline)}"</div>
     ${metaHtml}
 
+    <div class="radar-section">
+      <h3>📊 维度画像</h3>
+      <div class="radar-chart" id="radar-chart"></div>
+    </div>
+
     <div class="report">
       ${interpretation ? `<div class="report-section"><h3>🔍 毒舌解读</h3><p>${fmt(interpretation)}</p></div>` : ''}
       ${pseudoScience ? `<div class="report-section"><h3>🧪 伪科学分析</h3><p>${fmt(pseudoScience)}</p></div>` : ''}
@@ -1041,13 +1168,151 @@ function showResult(answer, tags) {
     </div>
 
     <div class="actions">
+      <button class="btn btn-outline" id="btn-share-poster">📮 分享海报</button>
+      <button class="btn btn-outline" id="btn-share-link">🔗 复制链接</button>
       <button class="btn btn-outline" onclick="refreshAvatar()">🎲 换一换</button>
       <button class="btn btn-outline" onclick="downloadAvatar()">📥 下载头像</button>
       <button class="btn btn-primary" onclick="restart()">🔄 再来一次</button>
     </div>
   `;
 
+  const posterBtn = document.getElementById('btn-share-poster');
+  if (posterBtn) posterBtn.addEventListener('click', sharePoster);
+  const linkBtn = document.getElementById('btn-share-link');
+  if (linkBtn) linkBtn.addEventListener('click', shareLink);
+
   drawAvatar('result-avatar', type);
+
+  if (window.NBTIRadar) {
+    window.NBTIRadar.renderRadar('radar-chart', scores);
+  }
+}
+
+// ---- 分享：toast / 海报 / 链接 ----
+
+let toastTimer = null;
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function setBtnLoading(btn, loading, loadingText) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = loadingText;
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+    btn.disabled = false;
+  }
+}
+
+function openPosterModal(canvas) {
+  let modal = document.getElementById('poster-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'poster-modal';
+    modal.className = 'poster-modal';
+    modal.innerHTML = `
+      <div class="poster-modal-inner">
+        <img alt="NBTI 分享海报预览">
+        <p class="poster-modal-hint">长按图片可保存到相册</p>
+        <div class="poster-modal-actions">
+          <button class="btn btn-primary" id="poster-download-btn">📥 下载 PNG</button>
+          <button class="btn btn-outline" id="poster-close-btn">关闭</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('open');
+    });
+    document.getElementById('poster-close-btn').addEventListener('click', () => {
+      modal.classList.remove('open');
+    });
+    document.getElementById('poster-download-btn').addEventListener('click', () => {
+      if (window.NBTIPoster && currentResult) {
+        window.NBTIPoster.download(currentResult, scores).catch(() => showToast('下载失败，请重试'));
+      }
+    });
+  }
+  modal.querySelector('img').src = canvas.toDataURL('image/png');
+  modal.classList.add('open');
+}
+
+async function sharePoster() {
+  if (!window.NBTIPoster) {
+    alert('海报模块未加载，无法生成分享海报');
+    return;
+  }
+  if (!currentResult) {
+    showToast('还没有生成结果');
+    return;
+  }
+  const btn = document.getElementById('btn-share-poster');
+  setBtnLoading(btn, true, '生成中…');
+  try {
+    const canvas = await window.NBTIPoster.generate(currentResult, scores);
+    openPosterModal(canvas);
+  } catch (e) {
+    console.error('海报生成失败', e);
+    showToast('海报生成失败，请重试');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+async function shareLink() {
+  if (!currentResult) {
+    showToast('还没有生成结果');
+    return;
+  }
+  const btn = document.getElementById('btn-share-link');
+  setBtnLoading(btn, true, '复制中…');
+  try {
+    const resp = await fetch(`${API_URL}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result: currentResult, scores })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.id || !/^[A-Za-z0-9_-]{1,32}$/.test(data.id)) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+    await copyText(window.location.origin + '/share/' + data.id);
+    showToast('链接已复制，快去朋友圈装逼');
+  } catch (e) {
+    console.error('分享链接失败', e);
+    showToast('分享失败：' + (e.message || '网络异常'));
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 function drawAvatar(elementId, personality) {
@@ -1096,7 +1361,9 @@ function restart() {
   nextDim = 'NB';
   canConclude = false;
   answerLocked = false;
+  incompleteRetryCount = 0;
   firstQuestionCache = null;
+  clearSessionSnapshot();
   clearPreloadCache();
   updateProgress();
   showPage('page-welcome');
@@ -1144,3 +1411,6 @@ function restart() {
     }
   });
 })();
+
+// 页面加载时尝试断点续测：有有效快照则重渲染当前题，无快照/损坏则正常进欢迎页
+restoreSessionSnapshot();

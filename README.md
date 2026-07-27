@@ -2,6 +2,7 @@
   <img src="https://img.shields.io/badge/AI-Powered-blueviolet?style=for-the-badge" />
   <img src="https://img.shields.io/badge/LLMs-4%20Vendors-ff69b4?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Streaming-SSE-success?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Python-Flask-000?style=for-the-badge&logo=flask" />
   <img src="https://img.shields.io/badge/Frontend-Vanilla%20JS-F7DF1E?style=for-the-badge&logo=javascript" />
   <img src="https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge&logo=docker" />
@@ -117,6 +118,15 @@ LLMs love to wrap JSON in markdown blocks, add preambles, or cut off mid-respons
 ### Hidden Easter Egg Types
 Schr&ouml;dinger's Employee (translucent), Hexagon Warrior (golden glow), Workplace Buddha (aura), Two-Face (split-color), Meme Lord (barrage). 5 hidden types with special avatar effects.
 
+### Shareable Everything
+Result page ships with a **4-dimension radar chart** (NB/BH/TF/IP), a one-click **750×1200 Canvas share poster** (avatar + type + one-liner + radar + branding), and a **30-day read-only share link** (`/share/<id>`). Roast your friends without giving them your API key.
+
+### Friend Compatibility Engine
+Two NBTI codes in, one verdict out. Local rule engine computes a **match score, combo name, and per-dimension reading** — with easter-egg combos as fallback. Generates its own compat poster. Zero LLM calls, pure spice.
+
+### PWA + Resume Anywhere
+Installable to home screen (manifest + service worker + icon). Test progress persists to localStorage — refresh, close, come back tomorrow, pick up exactly where the roast left off.
+
 </td>
 <td width="50%">
 
@@ -137,6 +147,15 @@ SSE 实时渲染每个字。你还在看题，下一题的 4 个分支答案**�
 
 ### 彩蛋人格
 薛定谔的打工人（半透明）、六边形战士（金色光环）、职场活佛（佛光）、职场双面人（分色）、互联网嘴替（弹幕）。5 种隐藏人格 + 专属头像特效。
+
+### 万物皆可分享
+结果页自带**四维雷达图**（NB/BH/TF/IP）、一键生成 **750×1200 Canvas 分享海报**（头像 + 人格 + 一句话锐评 + 雷达 + 品牌位）、外加 **30 天有效的只读分享链接**（`/share/<id>`）。毒舌好友，用不着交出你的 API Key。
+
+### 好友合盘引擎
+两个 NBTI 代码进去，一个审判结果出来。本地规则引擎给出**合拍指数、组合名、逐维度解读**，彩蛋组合兜底。还能生成专属合盘海报。零 LLM 调用，纯干货。
+
+### PWA + 断点续测
+可添加到主屏（manifest + service worker + icon）。答题进度写入 localStorage——刷新、关掉、明天再来，接着上次被毒舌的地方继续。
 
 </td>
 </tr>
@@ -238,6 +257,15 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 └──────────────────────────────────────────────────────┘
 ```
 
+### Security Model / 安全模型
+
+- **Key isolation (unchanged)** — API keys live only in the backend on `127.0.0.1`; the frontend server holds zero secrets and proxies `/api/*` with trusted `X-Forwarded-For`.
+- **Admin token** — Config writes (`POST /api/config`, reset, test-connection) and the full `GET /api/config` require an `X-Admin-Token` header matching env `NBTI_ADMIN_TOKEN`. If the env var is unset, only localhost requests count as admin. `config.html` has a token input and degrades to read-only mode without it.
+- **Key masking** — Non-admin `GET /api/config` responses mask every `api_key` (`***` + last 4 chars).
+- **Rate limiting** — `/api/chat*` and `POST /api/share` are IP-limited (`rate_limit_per_minute`, default 30, 0 = unlimited); abuse gets `429` + `retry_after`.
+- **Hardening** — `conversation_id` whitelist validation (no path traversal), `base_url` scheme validation on test-connection (no SSRF), no wide-open CORS, all LLM output escaped before rendering (no XSS), truncated streams never persisted.
+- **Data hygiene** — Conversations expire after 24h, share snapshots after 30 days (periodic cleanup).
+
 ---
 
 ## Tech Stack / 技术栈
@@ -250,7 +278,9 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 | Output | JSON structured + 4-layer parse fallback |
 | Avatars | Pure SVG procedural generator — 660 lines JS, zero assets |
 | Themes | Dark / Light, auto-detect via `prefers-color-scheme` |
-| Deploy | Docker + Gunicorn |
+| PWA | manifest.json + sw.js (static cache) + icon.svg — installable, resumable |
+| Charts & Posters | radar-chart.js (SVG radar) + share-poster.js (750×1200 Canvas PNG) |
+| Deploy | Docker + Gunicorn (workers=1, threads=8) |
 | CI | GitHub Actions (Python 3.10 / 3.11 / 3.12) |
 
 ---
@@ -271,6 +301,10 @@ Or use environment variables (overrides config.json at runtime):
 export NBTI_API_KEY_LONGCAT=your_key
 export NBTI_API_KEY_DEEPSEEK_V4_FLASH=your_key
 export NBTI_API_KEY_DOUBAO=your_key
+
+# Admin token for config write APIs (X-Admin-Token header).
+# If unset, only localhost requests are treated as admin.
+export NBTI_ADMIN_TOKEN=your_admin_token
 ```
 
 ### LLM Profiles
@@ -298,8 +332,10 @@ Supported vendors:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| min_questions | 20 | AI cannot conclude before this |
-| max_questions | 25 | AI forced to conclude at this |
+| min_questions | 12 | AI cannot conclude before this |
+| max_questions | 16 | AI forced to conclude at this |
+| preload_enabled | true | Preload next-question drafts for all answer branches |
+| rate_limit_per_minute | 30 | Per-IP rate limit on chat/share APIs (0 = unlimited) |
 | easter_egg_enabled | true | Enable hidden personality types |
 
 ---
@@ -310,12 +346,19 @@ Supported vendors:
 NBTI/
 ├── server.py              # Backend entry point
 ├── frontend_server.py     # Static file server + API proxy
-├── app.js                 # Frontend logic (SSE streaming, rendering)
+├── app.js                 # Frontend logic (SSE streaming, rendering, resume)
 ├── avatar-generator.js    # Procedural SVG avatar generator
+├── radar-chart.js         # 4-dimension SVG radar chart (result page)
+├── share-poster.js        # 750×1200 Canvas share/compat poster generator
+├── compat-data.js         # Friend compatibility rule engine
 ├── style.css              # Main stylesheet
 ├── index.html             # Test page
-├── config.html            # Admin config panel
+├── share.html             # Read-only shared result + compat page
+├── config.html            # Admin config panel (admin token + read-only mode)
 ├── config.css             # Config panel styles
+├── manifest.json          # PWA manifest
+├── sw.js                  # Service worker (static asset cache)
+├── icon.svg               # PWA icon
 ├── nbti/                  # Backend Python package
 │   ├── app.py             # Flask app + all API routes
 │   ├── config.py          # Config management
@@ -332,7 +375,11 @@ NBTI/
 │   ├── test_easter_eggs.py
 │   ├── test_commit_history.py
 │   ├── test_api_integration.py
-│   └── e2e/               # Playwright browser tests
+│   ├── test_security.py        # Admin token, key masking, traversal/SSRF guards
+│   ├── test_robustness.py      # Rate limit, cleanup, truncated streams, history trim
+│   ├── test_share.py           # Share snapshot create/read/expiry
+│   ├── test_frontend_assets.py # node --check on all JS assets
+│   └── e2e/                    # Playwright browser tests
 ├── docs/
 │   ├── avatars/           # 21 SVG avatar samples
 │   └── screenshots/
@@ -357,8 +404,13 @@ NBTI/
 - **Smart Conclusion** — AI decides when dimensions are clear enough (configurable min/max bounds). No fixed question count.
 - **SVG Avatar Generator** — 660-line pure JS. Procedural face shapes, asymmetric Bezier eyes, parametric hair sweeps, 4 themed accessories per type. Zero external assets.
 - **Hidden Special Types** — 5 easter egg personalities with unique visual effects (translucent, golden glow, Buddha light, split-color, barrage).
-- **Security** — API keys live only in backend (127.0.0.1). Frontend has zero secrets. IPv6-ready.
-- **Config Admin Panel** — Full CRUD for profiles, presets, game params. Test connections live.
+- **Radar Chart** — 4-dimension SVG radar (NB/BH/TF/IP) on the result page, theme-aware, zero dependencies.
+- **Share Poster & Links** — One-click 750×1200 Canvas PNG poster; `POST /api/share` mints a 30-day read-only snapshot at `/share/<id>`.
+- **Friend Compatibility** — Local rule engine (`compat-data.js`): match score, combo name, per-dimension readings, easter-egg fallback, plus a compat poster. No LLM round-trip.
+- **PWA & Resume** — Installable (manifest + service worker + icon); progress persists in localStorage so an interrupted test picks up where it left off.
+- **Rate Limiting & Retention** — Per-IP limits on chat/share APIs (429 + `retry_after`); conversations auto-expire after 24h, share snapshots after 30 days; truncated streams never persisted; LLM history trimmed to the last 12 messages.
+- **Security** — API keys live only in backend (127.0.0.1). Frontend has zero secrets. Admin token gates config writes; non-admin config reads are key-masked. IPv6-ready.
+- **Config Admin Panel** — Full CRUD for profiles, presets, game params. Test connections live. Admin-token input with graceful read-only fallback.
 
 ---
 

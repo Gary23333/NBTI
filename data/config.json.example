@@ -72,8 +72,10 @@
   "prompt_init": "",
   "prompt_assess": "",
   "prompt_result": "",
-  "min_questions": 20,
-  "max_questions": 25,
+  "min_questions": 12,
+  "max_questions": 16,
+  "preload_enabled": true,
+  "rate_limit_per_minute": 30,
   "easter_egg_enabled": true,
   "easter_eggs": {
     "schrodinger": 1,

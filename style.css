@@ -98,6 +98,7 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 14px 32px;
+  min-height: 44px;
   border-radius: 100px;
   border: none;
   font-size: 1rem;
@@ -341,6 +342,24 @@ body {
   white-space: nowrap;
   min-width: 5em;
 }
+.result .radar-section {
+  margin: 20px 0;
+  text-align: center;
+}
+.result .radar-section h3 {
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+.result .radar-chart {
+  display: flex;
+  justify-content: center;
+}
+.result .radar-chart svg {
+  max-width: 100%;
+  height: auto;
+}
 .result .report {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -464,14 +483,29 @@ body {
 }
 
 @media (max-width: 480px) {
+  html, body { overflow-x: hidden; }
+  .container { padding: 14px; }
+  .header { padding: 24px 0; }
   .header h1 { font-size: 2rem; }
+  .welcome { gap: 20px; }
   .welcome .emoji { font-size: 4rem; }
   .welcome h2 { font-size: 1.5rem; }
+  .question-card { padding: 16px; }
+  .question-text,
+  .result .report p,
+  .result .result-meta span { overflow-wrap: break-word; }
+  .result .actions { gap: 10px; }
+  .result .actions .btn { flex: 1 1 44%; padding: 14px 16px; }
+  .poster-modal { padding: 12px; }
+  .poster-modal-inner { max-width: 94vw; padding: 12px; }
+  .poster-modal-inner img { max-width: 100%; max-height: 56vh; }
 }
 
 /* Safe area for notched phones */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .footer { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .result .actions { padding-bottom: env(safe-area-inset-bottom); }
+  .theme-toggle { top: calc(16px + env(safe-area-inset-top)); }
 }
 
 /* Result page entrance animations */
@@ -481,3 +515,70 @@ body {
 .result .oneline { animation: fadeIn 0.4s ease-out 0.4s both; }
 .result .report { animation: fadeIn 0.5s ease-out 0.5s both; }
 .result .actions { animation: fadeIn 0.4s ease-out 0.7s both; }
+
+/* Toast（深浅主题自适应） */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 12px 22px;
+  font-size: 0.95rem;
+  max-width: 84vw;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 1000;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 海报预览弹层 */
+.poster-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 900;
+}
+.poster-modal.open { display: flex; }
+.poster-modal-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  max-width: 92vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.poster-modal-inner img {
+  display: block;
+  max-width: min(78vw, 340px);
+  max-height: 60vh;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.poster-modal-hint {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.poster-modal-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}

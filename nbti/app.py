@@ -1,17 +1,20 @@
 """NBTI Flask app factory with all routes registered"""
 
+import copy
 import os
+import time
 import uuid
 import logging
+import threading
 import requests
+from urllib.parse import urlparse
 from flask import Flask, request, jsonify, send_from_directory, Response
-from flask_cors import CORS
 
 from nbti.config import (
     load_config, save_config, find_profile_for_phase, find_profile,
     get_model_for_phase, _migrate_old_config, DEFAULT_CONFIG, CONFIG_FILE
 )
-from nbti.conversation import store
+from nbti.conversation import store, is_valid_conversation_id, ConversationStore
 from nbti.llm import (
     build_thinking_params, build_response_format, get_chat_completions_url,
     stream_generator
@@ -19,17 +22,186 @@ from nbti.llm import (
 from nbti.utils import (
     normalize_answer_question, parse_answer_meta, normalize_options,
     expected_next_question, inject_question_control, is_complete_assess,
-    commit_answer_to_history, extract_scene_summary
+    commit_answer_to_history, extract_scene_summary, trim_history
 )
 
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+_LOCAL_IPS = ('127.0.0.1', '::1')
+
+
+class ShareStore(ConversationStore):
+    """分享快照存储：复用会话的文件 JSON 模式（id 字符集校验 + 原子写），快照整体读写"""
+
+    def save_snapshot(self, share_id, snapshot):
+        with self.lock:
+            self._write(share_id, snapshot)
+
+    def get_snapshot(self, share_id):
+        data = self._read(share_id)
+        return data or None
+
+
+share_store = ShareStore(os.path.join(STATIC_DIR, 'data', 'shares'))
+
+# 分享快照 result 各字段长度上限（字符数），scores 取值范围 ±99
+_SHARE_RESULT_LIMITS = {
+    'type': 16, 'name': 32, 'oneline': 128,
+    'scene': 256, 'adapt': 256, 'crash': 256,
+    'interpretation': 2000, 'pseudo_science': 2000, 'closing': 512,
+}
+_SHARE_SCORE_KEYS = ('nb', 'bh', 'tf', 'ip')
+
+
+def _sanitize_share_payload(data):
+    """校验并规范化分享快照：result 必须为 dict，字段缺省空串并按上限截断；scores 四键转 int 并 clamp ±99。
+    合法返回 (result, scores)，非法返回 None"""
+    if not isinstance(data, dict):
+        return None
+    result = data.get('result')
+    if not isinstance(result, dict):
+        return None
+    clean_result = {}
+    for key, limit in _SHARE_RESULT_LIMITS.items():
+        value = result.get(key, '')
+        if not isinstance(value, str):
+            value = str(value)
+        clean_result[key] = value[:limit]
+    scores = data.get('scores')
+    if not isinstance(scores, dict):
+        scores = {}
+    clean_scores = {}
+    for key in _SHARE_SCORE_KEYS:
+        try:
+            value = int(scores.get(key, 0))
+        except (TypeError, ValueError):
+            value = 0
+        clean_scores[key] = max(-99, min(99, value))
+    return clean_result, clean_scores
+
+
+def _client_ip():
+    """获取真实客户端 IP：仅当直连对端是本机（前端代理）时才信任 X-Forwarded-For"""
+    remote = request.remote_addr or ''
+    if remote in _LOCAL_IPS:
+        xff = request.headers.get('X-Forwarded-For', '')
+        if xff:
+            return xff.split(',')[0].strip()
+    return remote
+
+
+def _is_admin_request():
+    """判定是否为管理员：携带正确的 X-Admin-Token；未配置 NBTI_ADMIN_TOKEN 时仅本机请求视为管理员"""
+    admin_token = os.environ.get('NBTI_ADMIN_TOKEN', '')
+    if admin_token:
+        return request.headers.get('X-Admin-Token', '') == admin_token
+    return _client_ip() in _LOCAL_IPS
+
+
+def _unauthorized():
+    return jsonify({"error": "unauthorized"}), 401
+
+
+def _mask_config(config):
+    """深拷贝配置并掩码所有 profile 的 api_key：空串保持空串，长度≤4 全掩码，否则仅保留后 4 位"""
+    masked = copy.deepcopy(config)
+    for p in masked.get('llm_profiles', []):
+        key = p.get('api_key', '')
+        if key:
+            p['api_key'] = '***' + key[-4:] if len(key) > 4 else '***'
+    return masked
+
+
+def _invalid_conversation_id(conversation_id):
+    """非空且非法的 conversation_id 判定（空 id 走各端点现有逻辑）"""
+    return bool(conversation_id) and not is_valid_conversation_id(conversation_id)
+
+
+class _RateLimiter:
+    """IP 级滑动窗口限流器（进程内 dict + 锁，仅适配单 worker 部署，见 gunicorn.conf.py）"""
+
+    def __init__(self):
+        self._hits = {}
+        self._lock = threading.Lock()
+
+    def check(self, key, limit, window=60):
+        """记录一次访问；超限返回 (False, retry_after 秒)，否则 (True, 0)。limit<=0 表示不限"""
+        if limit <= 0:
+            return True, 0
+        now = time.time()
+        with self._lock:
+            hits = [t for t in self._hits.get(key, []) if now - t < window]
+            if len(hits) >= limit:
+                retry_after = max(1, int(window - (now - hits[0])) + 1)
+                self._hits[key] = hits
+                return False, retry_after
+            hits.append(now)
+            self._hits[key] = hits
+            return True, 0
+
+    def reset(self):
+        """清空限流状态（测试隔离用）"""
+        with self._lock:
+            self._hits.clear()
+
+
+_rate_limiter = _RateLimiter()
+
+
+def _rate_limit_exceeded(config):
+    """按 config.rate_limit_per_minute 对当前 IP 限流（默认 30 次/分钟，0=不限）；超限返回 429 响应，否则 None"""
+    limit = int(config.get('rate_limit_per_minute', 30))
+    allowed, retry_after = _rate_limiter.check(_client_ip(), limit)
+    if allowed:
+        return None
+    logger.warning(f"[RATE_LIMIT] 触发限流 | ip={_client_ip()} | limit={limit}/min | retry_after={retry_after}s")
+    return jsonify({"error": "rate_limited", "retry_after": retry_after}), 429
+
+
+_cleanup_thread_lock = threading.Lock()
+_cleanup_thread_started = False
+
+
+def _cleanup_loop():
+    """后台守护循环：每小时清理一次超过 24h 未更新的会话文件与超过 30 天的分享快照"""
+    while True:
+        time.sleep(3600)
+        try:
+            removed = store.cleanup_old(24)
+            logger.info(f"[CLEANUP] 定期清理完成 | removed={removed}")
+        except Exception as e:
+            logger.warning(f"[CLEANUP] 定期清理异常: {e}")
+        try:
+            removed = share_store.cleanup_old(30 * 24)
+            logger.info(f"[CLEANUP] 分享快照定期清理完成 | removed={removed}")
+        except Exception as e:
+            logger.warning(f"[CLEANUP] 分享快照定期清理异常: {e}")
+
+
+def ensure_cleanup_thread():
+    """启动会话清理守护线程（幂等：进程内仅启动一次；gunicorn preload 下 fork 后需在 post_worker_init 再次调用）"""
+    global _cleanup_thread_started
+    with _cleanup_thread_lock:
+        if _cleanup_thread_started:
+            return
+        thread = threading.Thread(target=_cleanup_loop, daemon=True, name='nbti-cleanup')
+        thread.start()
+        _cleanup_thread_started = True
+
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+
+    # 启动时清理一次过期会话（>24h）与过期分享快照（>30天），并启动后台定时清理线程（幂等）
+    removed = store.cleanup_old(24)
+    if removed:
+        logger.info(f"[CLEANUP] 启动清理完成 | removed={removed}")
+    removed = share_store.cleanup_old(30 * 24)
+    if removed:
+        logger.info(f"[CLEANUP] 分享快照启动清理完成 | removed={removed}")
+    ensure_cleanup_thread()
 
     # ---- Health check ----
     @app.route('/api/health', methods=['GET'])
@@ -39,7 +211,7 @@ def create_app():
             "status": "ok",
             "profiles": len(config.get("llm_profiles", [])),
             "active_preset": config.get("active_preset", ""),
-            "version": "2.0.0"
+            "version": "2.1.0"
         })
 
     # ---- Chat endpoints ----
@@ -48,7 +220,13 @@ def create_app():
         data = request.json
         message = data.get('message', '')
         conversation_id = data.get('conversation_id', '')
+        if _invalid_conversation_id(conversation_id):
+            logger.warning(f"[CHAT] 非法 conversation_id: {conversation_id!r}")
+            return jsonify({"error": "Invalid conversation_id"}), 400
         config = load_config()
+        limited = _rate_limit_exceeded(config)
+        if limited:
+            return limited
 
         use_stream = request.args.get('stream') == '1'
         logger.info(f"[CHAT] id={conversation_id} | msg={message[:50]}... | stream={use_stream}")
@@ -89,8 +267,9 @@ def create_app():
         if phase in ['init', 'assess']:
             system_prompt = inject_question_control(system_prompt, expected_q)
 
+        # 发给 LLM 的上下文只带最近 12 条历史，降低 token 膨胀；题号统计与落库仍基于完整 history
         messages = [{"role": "system", "content": system_prompt}]
-        for msg in history:
+        for msg in trim_history(history):
             if msg.get("role") != "system":
                 messages.append(msg)
         messages.append({"role": "user", "content": message})
@@ -155,12 +334,18 @@ def create_app():
         data = request.json
         message = data.get('message', '')
         conversation_id = data.get('conversation_id', '')
+        if _invalid_conversation_id(conversation_id):
+            logger.warning(f"[PRELOAD] 非法 conversation_id: {conversation_id!r}")
+            return jsonify({"error": "Invalid conversation_id"}), 400
         config = load_config()
+        limited = _rate_limit_exceeded(config)
+        if limited:
+            return limited
 
         use_stream = request.args.get('stream') == '1'
         logger.info(f"[PRELOAD] id={conversation_id} | msg={message[:50]}...")
 
-        history = list(store.get_history(conversation_id))
+        history = list(store.get_history(conversation_id)) if conversation_id else []
         expected_q = None
 
         if '[PHASE:RESULT]' in message or '[CAN_CONCLUDE:true]' in message:
@@ -173,7 +358,7 @@ def create_app():
             phase = 'assess'
             expected_q = expected_next_question(history)
             system_prompt = config['prompt_assess']
-            scenes = store.get_scenes(conversation_id)
+            scenes = store.get_scenes(conversation_id) if conversation_id else []
             if scenes:
                 scenes_text = '\n'.join([f"- {s}" for s in scenes])
                 system_prompt = system_prompt.replace('{previous_scenes}', scenes_text)
@@ -188,8 +373,9 @@ def create_app():
         if phase == 'assess':
             system_prompt = inject_question_control(system_prompt, expected_q)
 
+        # 发给 LLM 的上下文只带最近 12 条历史，降低 token 膨胀；题号统计与落库仍基于完整 history
         messages = [{"role": "system", "content": system_prompt}]
-        for msg in history:
+        for msg in trim_history(history):
             if msg.get("role") != "system":
                 messages.append(msg)
         messages.append({"role": "user", "content": message})
@@ -253,12 +439,18 @@ def create_app():
 
     @app.route('/api/chat/preload/commit', methods=['POST'])
     def commit_preload():
+        limited = _rate_limit_exceeded(load_config())
+        if limited:
+            return limited
         data = request.json
         message = data.get('message', '')
         conversation_id = data.get('conversation_id', '')
 
         if not conversation_id or not message:
             return jsonify({"error": "Missing conversation_id or message"}), 400
+        if not is_valid_conversation_id(conversation_id):
+            logger.warning(f"[PRELOAD_COMMIT] 非法 conversation_id: {conversation_id!r}")
+            return jsonify({"error": "Invalid conversation_id"}), 400
 
         draft = store.get_preload_draft(conversation_id, message)
         if not draft:
@@ -296,10 +488,17 @@ def create_app():
     @app.route('/api/config', methods=['GET'])
     def get_config():
         config = load_config()
-        return jsonify(config)
+        if _is_admin_request():
+            return jsonify(config)
+        masked = _mask_config(config)
+        masked['_readonly'] = True
+        return jsonify(masked)
 
     @app.route('/api/config', methods=['POST'])
     def update_config():
+        if not _is_admin_request():
+            logger.warning(f"[CONFIG] 未授权的配置写请求 | ip={_client_ip()}")
+            return _unauthorized()
         config = request.json
         config = _migrate_old_config(config)
         for key, value in DEFAULT_CONFIG.items():
@@ -311,6 +510,9 @@ def create_app():
 
     @app.route('/api/config/test-connection', methods=['POST'])
     def test_connection():
+        if not _is_admin_request():
+            logger.warning(f"[CONFIG] 未授权的 test-connection 请求 | ip={_client_ip()}")
+            return _unauthorized()
         data = request.json
         if not data:
             return jsonify({"error": "Missing profile data"}), 400
@@ -322,6 +524,12 @@ def create_app():
 
         if not base_url or not api_key:
             return jsonify({"error": "Missing base_url or api_key"}), 400
+
+        # SSRF 防护：仅允许 http/https 且必须有 hostname（不封禁内网 IP，局域网 LM Studio 属合法用途）
+        parsed = urlparse(base_url)
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+            logger.warning(f"[CONFIG] test-connection 非法 base_url: {base_url!r}")
+            return jsonify({"error": "Invalid base_url: only http/https URLs are allowed"}), 400
 
         headers = {
             "Content-Type": "application/json",
@@ -357,6 +565,9 @@ def create_app():
 
     @app.route('/api/config/reset', methods=['POST'])
     def reset_config():
+        if not _is_admin_request():
+            logger.warning(f"[CONFIG] 未授权的配置重置请求 | ip={_client_ip()}")
+            return _unauthorized()
         save_config(DEFAULT_CONFIG)
         logger.info("[CONFIG] Reset to defaults")
         return jsonify({"success": True})
@@ -374,5 +585,34 @@ def create_app():
             "active_preset": config.get("active_preset", ""),
             "profiles_count": len(config.get("llm_profiles", []))
         })
+
+    # ---- Share endpoints ----
+    # 分享是公开功能：无需管理鉴权，也不依赖 conversation
+    @app.route('/api/share', methods=['POST'])
+    def create_share():
+        config = load_config()
+        limited = _rate_limit_exceeded(config)
+        if limited:
+            return limited
+        parsed = _sanitize_share_payload(request.json)
+        if not parsed:
+            logger.warning(f"[SHARE] 非法快照结构 | ip={_client_ip()}")
+            return jsonify({"error": "Invalid share payload"}), 400
+        result, scores = parsed
+        share_id = uuid.uuid4().hex[:8]
+        snapshot = {"result": result, "scores": scores, "created_at": int(time.time())}
+        share_store.save_snapshot(share_id, snapshot)
+        logger.info(f"[SHARE] 创建快照 | id={share_id} | type={result.get('type')}")
+        return jsonify({"id": share_id})
+
+    @app.route('/api/share/<share_id>', methods=['GET'])
+    def get_share(share_id):
+        if not is_valid_conversation_id(share_id):
+            logger.warning(f"[SHARE] 非法 share_id: {share_id!r}")
+            return jsonify({"error": "Share not found"}), 404
+        snapshot = share_store.get_snapshot(share_id)
+        if not snapshot:
+            return jsonify({"error": "Share not found"}), 404
+        return jsonify(snapshot)
 
     return app

@@ -1,5 +1,42 @@
 # Changelog
 
+## v2.1.0 (2026-07-27)
+
+### Added
+- **Radar chart on result page** (`radar-chart.js`) — 4-dimension radar visualization (NB / BH / TF / IP) rendered as inline SVG
+- **Share poster generator** (`share-poster.js`) — 750×1200 native Canvas PNG: avatar + type + one-liner + radar + meta + branding
+- **Share links** — `POST /api/share` creates a read-only snapshot served at `/share/<id>` (`share.html`), valid for 30 days
+- **Friend compatibility / 好友合盘** (`compat-data.js`) — local rule engine: match score, combo name, per-dimension readings, easter-egg fallback; compat section on `share.html` + compat poster
+- **PWA support** — `manifest.json` + `sw.js` (static asset caching) + `icon.svg`; installable to home screen
+- **Resume test / 断点续测** — progress persisted to localStorage, restored after refresh
+- **Rate limiting** — IP-based limit on `/api/chat*` and `POST /api/share`; config `rate_limit_per_minute` (default 30, 0 = unlimited); returns 429 + `retry_after`
+- **Admin token** — config write APIs and `/api/config/test-connection` require `X-Admin-Token` header (env `NBTI_ADMIN_TOKEN`; if unset, only localhost is treated as admin); `config.html` gains token input + read-only mode
+- **New tests** — `tests/test_security.py` (28), `tests/test_robustness.py` (12), `tests/test_share.py` (9), `tests/test_frontend_assets.py` (node --check)
+
+### Changed
+- **Default question count**: min 20 → **12**, max 25 → **16** (shorter games, same roast quality)
+- **New config key** `preload_enabled` (default true) with a toggle in `config.html`
+- **Gunicorn tuning**: `workers=1, threads=8` (file-storage constraint); cleanup thread restarted via `post_worker_init`
+- **LLM history trimmed** to the most recent 12 messages; question numbering still counts the full history
+- **Progress bar** now reflects the actual question count
+- **Mobile polish**: safe-area insets, larger touch targets, no horizontal scroll
+- **CI**: restored `test_longcat_presets`, added `node --check` step for frontend assets
+
+### Fixed
+- **XSS**: all LLM-generated content is escaped before rendering
+- **Option button event binding** — answers no longer polluted by escaped text or mismatched preload keys
+- **Incomplete-question retry** capped at 3 attempts
+- **SSE handling** checks the `done` event first
+- **Truncated streaming answers** are no longer persisted to storage
+
+### Security
+- `GET /api/config` masks `api_key` for non-admins (`***` + last 4 chars)
+- `conversation_id` whitelist validation against path traversal
+- `test-connection` validates `base_url` scheme against SSRF
+- Removed wide-open CORS
+- `frontend_server.py` forwards trusted `X-Forwarded-For`
+- Periodic cleanup: conversations expire after 24h, share snapshots after 30 days
+
 ## v2.0.0 (2026-06-01)
 
 ### Architecture

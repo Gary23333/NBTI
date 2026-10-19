@@ -1,131 +1,82 @@
+"""会话存储门面。
+
+对外保持既有 API 完全不变（ConversationStore / store / is_valid_conversation_id 等），
+内部委托给 nbti.storage 中的 StorageBackend 实现（默认文件后端，可选 Redis 后端）。
+"""
+
 import os
-import re
-import json
-import time
-import threading
-import logging
 
-logger = logging.getLogger(__name__)
-
-# conversation_id 合法字符集：字母/数字/下划线/连字符，最长 64（显式拒绝 .. / \ 等路径穿越字符）
-_CONV_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
-
-
-def is_valid_conversation_id(cid):
-    """校验 conversation_id 是否合法（防路径穿越）"""
-    return isinstance(cid, str) and bool(_CONV_ID_RE.match(cid))
+from nbti.storage import (
+    StorageBackend,
+    FileStorage,
+    RedisStorage,
+    create_store,
+    is_valid_conversation_id,
+)
 
 
 class ConversationStore:
-    def __init__(self, base_dir):
-        self.base_dir = base_dir
-        self.lock = threading.Lock()
-        os.makedirs(base_dir, exist_ok=True)
+    """会话存储门面：委托给 StorageBackend。
 
+    保留 base_dir / lock / _read / _write / cleanup_old 等成员，
+    使 app.py 的 ShareStore(ConversationStore) 与 utils.py 的 store.lock/_read/_write 用法无需改动。
+    """
+
+    def __init__(self, base_dir, backend=None):
+        # backend 可显式注入；否则按 base_dir 走工厂（默认文件后端，环境/配置指定 redis 时才启用）
+        if backend is None:
+            backend = create_store(base_dir, kind="file")
+        self._backend = backend
+        # 属性代理：base_dir 与 lock 直接取后端，保证与后端临界区共用同一把锁
+        self.base_dir = backend.base_dir
+        self.lock = backend.lock
+
+    # ---- 低层读写/清理（委托后端） ----
     def _path(self, conversation_id):
-        """拼接会话文件路径，非法 id 抛 ValueError（防路径穿越）"""
-        if not is_valid_conversation_id(conversation_id):
-            raise ValueError(f"非法 conversation_id: {conversation_id!r}")
-        return os.path.join(self.base_dir, f"{conversation_id}.json")
-
-    def get_history(self, conversation_id):
-        return self._read(conversation_id).get('history', [])
-
-    def save_history(self, conversation_id, history):
-        with self.lock:
-            data = self._read(conversation_id)
-            data['history'] = history
-            self._write(conversation_id, data)
-
-    def get_scenes(self, conversation_id):
-        return self._read(conversation_id).get('scenes', [])
-
-    def save_scenes(self, conversation_id, scenes):
-        with self.lock:
-            data = self._read(conversation_id)
-            data['scenes'] = scenes
-            self._write(conversation_id, data)
-
-    def get_theme(self, conversation_id):
-        return self._read(conversation_id).get('theme', 'workplace')
-
-    def set_theme(self, conversation_id, theme_id):
-        with self.lock:
-            data = self._read(conversation_id)
-            data['theme'] = theme_id
-            self._write(conversation_id, data)
-
-    def get_style(self, conversation_id):
-        return self._read(conversation_id).get('style', '暴躁老油条')
-
-    def set_style(self, conversation_id, style_name):
-        with self.lock:
-            data = self._read(conversation_id)
-            data['style'] = style_name
-            self._write(conversation_id, data)
-
-    def get_preload_draft(self, conversation_id, message):
-        return self._read(conversation_id).get('preloads', {}).get(message)
-
-    def save_preload_draft(self, conversation_id, message, answer, tokens_used=0):
-        with self.lock:
-            data = self._read(conversation_id)
-            preloads = data.get('preloads', {})
-            preloads[message] = {
-                "answer": answer,
-                "tokens_used": tokens_used,
-                "created_at": int(time.time())
-            }
-            data['preloads'] = preloads
-            self._write(conversation_id, data)
-
-    def clear_preloads(self, conversation_id):
-        with self.lock:
-            data = self._read(conversation_id)
-            data['preloads'] = {}
-            self._write(conversation_id, data)
+        return self._backend._path(conversation_id)
 
     def _read(self, conversation_id):
-        path = self._path(conversation_id)
-        if not os.path.exists(path):
-            return {}
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
-            return {}
+        return self._backend._read(conversation_id)
 
     def _write(self, conversation_id, data):
-        path = self._path(conversation_id)
-        tmp_path = path + ".tmp"
-        for attempt in range(3):
-            try:
-                with open(tmp_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                os.replace(tmp_path, path)
-                return
-            except PermissionError:
-                if attempt < 2:
-                    time.sleep(0.1 * (attempt + 1))
-                else:
-                    logger.warning(f"[STORE] 文件写入失败(PermissionError) | id={conversation_id}")
+        return self._backend._write(conversation_id, data)
 
     def cleanup_old(self, max_age_hours=24):
-        """清理超过 max_age_hours 未更新的会话文件，返回删除数量"""
-        now = time.time()
-        max_age_seconds = max_age_hours * 3600
-        removed = 0
-        for filename in os.listdir(self.base_dir):
-            if not filename.endswith('.json'):
-                continue
-            path = os.path.join(self.base_dir, filename)
-            try:
-                if now - os.path.getmtime(path) > max_age_seconds:
-                    os.remove(path)
-                    removed += 1
-            except OSError:
-                pass
-        return removed
+        return self._backend.cleanup_old(max_age_hours)
+
+    # ---- 高层业务方法（委托后端） ----
+    def get_history(self, conversation_id):
+        return self._backend.get_history(conversation_id)
+
+    def save_history(self, conversation_id, history):
+        return self._backend.save_history(conversation_id, history)
+
+    def get_scenes(self, conversation_id):
+        return self._backend.get_scenes(conversation_id)
+
+    def save_scenes(self, conversation_id, scenes):
+        return self._backend.save_scenes(conversation_id, scenes)
+
+    def get_theme(self, conversation_id):
+        return self._backend.get_theme(conversation_id)
+
+    def set_theme(self, conversation_id, theme_id):
+        return self._backend.set_theme(conversation_id, theme_id)
+
+    def get_style(self, conversation_id):
+        return self._backend.get_style(conversation_id)
+
+    def set_style(self, conversation_id, style_name):
+        return self._backend.set_style(conversation_id, style_name)
+
+    def get_preload_draft(self, conversation_id, message):
+        return self._backend.get_preload_draft(conversation_id, message)
+
+    def save_preload_draft(self, conversation_id, message, answer, tokens_used=0):
+        return self._backend.save_preload_draft(conversation_id, message, answer, tokens_used)
+
+    def clear_preloads(self, conversation_id):
+        return self._backend.clear_preloads(conversation_id)
 
 
 store = ConversationStore(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'conversations'))

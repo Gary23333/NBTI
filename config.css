@@ -175,6 +175,9 @@ body {
 .phase-vendor.deepseek { background: rgba(52,211,153,0.15); color: var(--accent3); }
 .phase-vendor.lmstudio { background: rgba(244,114,182,0.15); color: var(--accent); }
 .phase-vendor.longcat { background: rgba(251,191,36,0.15); color: #fbbf24; }
+/* 通用 OpenAI 兼容（中性配色）与未知供应商兜底徽章 */
+.phase-vendor.openai_compatible { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.phase-vendor.neutral { background: rgba(148,163,184,0.15); color: #94a3b8; }
 
 /* Preset tabs */
 .preset-tabs {

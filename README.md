@@ -253,6 +253,44 @@ Installable to home screen (manifest + service worker + icon). Test progress per
 
 </td>
 </tr>
+<tr>
+<td width="50%">
+
+### 🧩 Extensible Vendor Registry (NEW!)
+Model vendors are no longer hard-coded in the LLM client. Each vendor is a `Provider` adapter registered in `nbti/providers.py`; adding one means implementing a subclass and calling `register_provider` — **no changes to `app.py` or `llm.py`**. Unknown vendors safely fall back to a generic OpenAI-compatible adapter.
+
+### 🔌 Shared Connection Pool (NEW!)
+All outbound LLM calls share one `httpx` client (`nbti/http_client.py`) with keep-alive reuse and connection limits, cutting per-call latency. HTTP/2 is used automatically when `h2` is installed, otherwise it degrades to HTTP/1.1.
+
+### ⚡ Parallel Preload + Warmup (NEW!)
+`/api/chat/preload/batch` generates drafts for every answer branch **in parallel**, and `/api/chat/warmup` pre-builds the first question so "开始测试" feels instant.
+
+### 🗄️ In-Process Cache + Pluggable Storage (NEW!)
+TTL caching (`nbti/cache.py`) speeds up prompt building and conversation reads. Storage (`nbti/storage.py`) is decoupled behind a backend interface — file JSON by default, optional Redis for multi-worker scaling.
+
+### 📦 Frontend ES Modules (NEW!)
+The frontend is split into 11 native ES Modules under `js/` (state / util / api / render / stream / preload / session / skeleton / warmup / fastmode / main) — modular, lint-checked in CI.
+
+</td>
+<td width="50%">
+
+### 🧩 可扩展模型供应商注册表（全新！）
+供应商不再硬编码在 LLM 客户端里。每个供应商都是注册在 `nbti/providers.py` 的 `Provider` 适配器；新增一个只需实现子类并 `register_provider`——**无需改动 `app.py` 或 `llm.py`**。未知 vendor 安全回退到通用 OpenAI 兼容适配器。
+
+### 🔌 共享连接池提速（全新！）
+所有对外 LLM 调用共享同一个 `httpx` 客户端（`nbti/http_client.py`），开启 keep-alive 连接复用与连接上限，削减单次调用延迟。装了 `h2` 时自动走 HTTP/2，否则降级 HTTP/1.1。
+
+### ⚡ 并行预载 + 首题预热（全新！）
+`/api/chat/preload/batch` **并行**为每个答题分支生成草稿，`/api/chat/warmup` 预先生成第一题，点「开始测试」秒开。
+
+### 🗄️ 进程内缓存 + 可插拔存储（全新！）
+TTL 缓存（`nbti/cache.py`）加速 prompt 构建与会话读取。存储（`nbti/storage.py`）解耦到后端接口——默认文件 JSON，可选 Redis 支撑多 worker 横向扩容。
+
+### 📦 前端 ES Module 模块化（全新！）
+前端拆成 `js/` 下 11 个原生 ES Module（state / util / api / render / stream / preload / session / skeleton / warmup / fastmode / main），模块化并纳入 CI 语法检查。
+
+</td>
+</tr>
 </table>
 
 ---
@@ -362,7 +400,7 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 | Frontend | Vanilla HTML/CSS/JS | 2026全新UI，主题选择页核心/热门分组+NEW角标 |
 | Backend | Python Flask + SSE streaming | 多主题引擎，动态prompt系统 |
 | Themes System | `nbti/themes.py` | 9大测试主题全量开放（新增搞钱💰/精神状态🔋） |
-| LLMs | Doubao (Volces Ark) · DeepSeek · LM Studio · LongCat | 4 vendors, hot-swappable per phase |
+| LLMs | Doubao (Volces Ark) · DeepSeek · LM Studio · LongCat · OpenAI-compatible | 5 注册供应商，按阶段热插拔；基于注册表（`nbti/providers.py`） |
 | Prompt System | `nbti/prompts.py` | 7种吐槽风格×9主题=63种玩法，判定/分数/场景规则按主题动态注入 |
 | Output | JSON structured + 4-layer parse fallback | Smart options (2-4 per question) |
 | Avatars | Pure SVG procedural generator | 137种头像组合：16职场+5彩蛋+12动物+8色彩+6新主题×16 |
@@ -371,7 +409,12 @@ Each personality type gets a **procedurally generated, one-of-a-kind SVG avatar*
 | Themes | Dark / Light, auto-detect | 🆕 主题联动视觉系统 |
 | PWA | manifest.json + sw.js + icon.svg | Installable, resumable |
 | Charts | radar-chart.js (SVG radar) | Theme-aware radar charts |
-| Deploy | Docker + Gunicorn (workers=1, threads=8) | Production-ready |
+| Deploy | Docker + Gunicorn (workers=1, threads=8) | 生产可用；`NBTI_WORKERS` 可扩 worker，>1 需启用 Redis 存储后端 |
+| Providers | `nbti/providers.py` (registry) | 🆕 可扩展供应商注册表；新增 vendor 只需实现 `Provider` 子类 + `register_provider` |
+| HTTP Client | `nbti/http_client.py` (shared httpx pool) | 🆕 keep-alive 连接复用，削减单次调用延迟（装了 h2 走 HTTP/2） |
+| Cache / Storage | `nbti/cache.py` + `nbti/storage.py` | 🆕 进程内 TTL 缓存；文件/Redis 存储后端可切换 |
+| Frontend Modules | `js/*.js` (native ES Modules) | 🆕 11 个 ES Module 模块化，CI 纳入 `node --check` 语法检查 |
+| Preload / Warmup | `/api/chat/preload/batch`, `/api/chat/warmup` | 🆕 并行预载多分支 + 首题预热 |
 | CI | GitHub Actions (Python 3.10 / 3.11 / 3.12) | Comprehensive test suite |
 
 ---
@@ -410,6 +453,9 @@ Supported vendors:
 | DeepSeek | deepseek-v4-flash | Thinking mode supported |
 | LM Studio | google/gemma-4-e4b | Local inference |
 | LongCat | LongCat-Flash-Chat | Built-in thinking models |
+| OpenAI-compatible | any | Generic fallback for unknown vendors |
+
+> **Adding a new vendor / 新增供应商** — Vendors are registered adapters (`nbti/providers.py`). Implement a `Provider` subclass and call `register_provider()`; the app and LLM client pick it up automatically — **no changes to `app.py` / `llm.py`**. Step-by-step guide in [CONTRIBUTING.md](CONTRIBUTING.md#how-to-add-a-new-llm-vendor).
 
 ### Roast Styles / 吐槽风格预设
 
@@ -454,13 +500,29 @@ NBTI/
 ├── manifest.json          # PWA manifest
 ├── sw.js                  # Service worker (static asset cache)
 ├── icon.svg               # PWA icon
+├── js/                    # Frontend ES Modules
+│   ├── main.js            # 入口：装配各模块并挂载 window 回调
+│   ├── state.js           # 全局状态
+│   ├── util.js            # 工具函数
+│   ├── api.js             # 后端 API 调用
+│   ├── render.js          # 主题/风格/题目渲染
+│   ├── stream.js          # SSE 流式解析与流程控制
+│   ├── preload.js         # 并行预载
+│   ├── session.js         # 断点续测本地快照
+│   ├── skeleton.js        # 骨架屏
+│   ├── warmup.js          # 首题预热
+│   └── fastmode.js        # fast_mode 开关
 ├── nbti/                  # Backend Python package
 │   ├── app.py             # Flask app + all API routes
 │   ├── config.py          # Config management
 │   ├── themes.py          # 9 multi-theme definitions
-│   ├── prompts.py         # 🆕 7 style prompt templates
+│   ├── prompts.py         # 7 style prompt templates
+│   ├── providers.py       # 🆕 可扩展供应商注册表 (Provider adapters)
+│   ├── http_client.py     # 🆕 共享 httpx 连接池客户端
+│   ├── cache.py           # 🆕 进程内 TTL 缓存
+│   ├── storage.py         # 🆕 存储后端 (FileStorage / RedisStorage)
 │   ├── llm.py             # LLM client + streaming
-│   ├── conversation.py    # Thread-safe storage
+│   ├── conversation.py    # 🆕 会话存储门面（委托 storage 后端）
 │   └── utils.py           # Parsing + normalization
 ├── data/
 │   └── config.json.example  # Config template

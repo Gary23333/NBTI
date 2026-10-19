@@ -1,5 +1,12 @@
 flask==3.0.0
 flask-cors==4.0.0
 requests==2.31.0
+httpx==0.28.1
 gunicorn==22.0.0
 pytest>=7.4.0
+
+# 可选依赖（非强制安装）：
+# - redis：仅在启用 Redis 存储后端（NBTI_STORAGE_BACKEND=redis 或 config storage_backend="redis"）
+#   时才需要。未安装时 create_store 会自动回退到文件后端 FileStorage，不影响默认单机运行。
+#   如需横向扩容（gunicorn workers > 1）请先安装并启用它：pip install redis
+# redis>=5.0.0

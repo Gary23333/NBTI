@@ -101,17 +101,11 @@ def inject_question_control(system_prompt, expected_q):
 
     control = f"""
 
-## 本地题号控制（最高优先级）
-- 本轮必须输出 q={expected_q}。
-- 严禁自行推断、重复或跳过题号。
-- JSON 字段 q 必须是数字 {expected_q}。
+## 题号控制（最高优先级）
+- 本轮必须输出 q={expected_q}；JSON 的 q 必须为该数字，严禁推断、重复或跳过题号。
 
-## 输出长度控制（必须遵守！）
-- 整个 JSON 回复控制在 400 字以内
-- comment ≤ 35 字
-- scene ≤ 80 字
-- 每个 option ≤ 10 字
-- 不要输出多余字段
+## 长度控制
+- 整个 JSON ≤400 字；comment≤35 字；scene≤80 字；每个 option≤10 字；不输出多余字段。
 """
     return system_prompt + control
 

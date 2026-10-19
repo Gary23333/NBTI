@@ -1,67 +1,32 @@
 import json
 import time
 import logging
-import requests
 
+from nbti import http_client
 from nbti.utils import (
     normalize_answer_question, parse_answer_meta, extract_scene_summary,
     commit_answer_to_history, is_complete_assess, parse_json_answer
 )
 from nbti.conversation import store
+from nbti.providers import get_provider
 
 logger = logging.getLogger(__name__)
 
 
 def build_thinking_params(profile):
-    """根据 profile 的 vendor 和 thinking 配置构建 thinking 参数
-    
-    豆包 (doubao):
-      - type="enabled" 时发送 reasoning_effort: minimal/low/medium/high
-      - type="disabled" 时不发送 thinking 参数
-    
-    DeepSeek:
-      - type="enabled" 时发送 thinking: {type: "enabled"} + reasoning_effort: high/max
-      - type="disabled" 时不发送
+    """薄封装：委托给供应商注册表构建 thinking 参数。
 
-    LongCat:
-      - 思考模型内置思考能力，靠模型名区分，不发送 thinking 参数
+    具体差异（豆包/DeepSeek/LongCat/LM Studio/通用）由 nbti.providers 中
+    对应的适配器实现；未知 vendor 回退到 openai_compatible。
     """
-    thinking_config = profile.get("thinking", {})
-    if not thinking_config:
-        return {}
-    
-    thinking_type = thinking_config.get("type", "disabled")
-    if thinking_type != "enabled":
-        return {}
-    
-    vendor = profile.get("vendor", "doubao")
-    effort = thinking_config.get("reasoning_effort", "low")
-    
-    if vendor == "longcat":
-        # LongCat: 思考模型内置思考能力，不发送 thinking 参数
-        return {}
-    elif vendor == "deepseek":
-        # DeepSeek: 需要 thinking.type 开关 + reasoning_effort
-        # low/medium 会被 DeepSeek 映射为 high, xhigh → max
-        return {
-            "thinking": {"type": "enabled"},
-            "reasoning_effort": effort
-        }
-    else:
-        # 豆包（默认）: 只发 reasoning_effort
-        return {
-            "reasoning_effort": effort
-        }
+    provider = get_provider(profile.get("vendor", "doubao"))
+    return provider.build_thinking_params(profile)
 
 
 def get_chat_completions_url(profile):
-    base_url = profile.get("base_url", "").rstrip("/")
-    vendor = profile.get("vendor", "")
-    if vendor == "lmstudio" and not base_url.endswith("/v1"):
-        base_url = f"{base_url}/v1"
-    if vendor == "longcat":
-        return f"{base_url}/openai/v1/chat/completions"
-    return f"{base_url}/chat/completions"
+    """薄封装：委托给供应商注册表构建 chat/completions 端点 URL。"""
+    provider = get_provider(profile.get("vendor", ""))
+    return provider.chat_completions_url(profile)
 
 
 def build_assess_schema():
@@ -117,39 +82,14 @@ def build_result_schema():
 
 
 def build_response_format(profile, phase):
-    """根据 json_mode 和阶段构建真正的 JSON Schema response_format。"""
-    jm = profile.get("json_mode", {})
-    if not jm or not jm.get("enabled"):
-        return {}
-    vendor = profile.get("vendor", "doubao")
+    """薄封装：委托给供应商注册表构建 response_format。
 
-    if vendor in ("doubao", "longcat"):
-        # 豆包和 LongCat 当前接口不支持 response_format=json_schema，依赖提示词
-        return {}
-
-    if phase in ["init", "assess"]:
-        name = "NBTIAssess"
-        schema = build_assess_schema()
-    elif phase == "result":
-        name = "NBTIResult"
-        schema = build_result_schema()
-    else:
-        return {}
-
-    if vendor == "deepseek":
-        # DeepSeek chat 兼容 JSON object；严格 schema 兼容性因模型/端点不同，先走保守格式。
-        return {"response_format": {"type": "json_object"}}
-
-    return {
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": name,
-                "strict": True,
-                "schema": schema
-            }
-        }
-    }
+    具体差异（豆包/LongCat 返回 {}、DeepSeek 走 json_object、其余走严格
+    json_schema）由 nbti.providers 中对应适配器实现；未知 vendor 回退到
+    openai_compatible。
+    """
+    provider = get_provider(profile.get("vendor", "doubao"))
+    return provider.build_response_format(profile, phase)
 
 
 def _is_valid_final_answer(answer, phase, expected_q=None):
@@ -191,7 +131,7 @@ def stream_generator(profile, payload, conversation_id=None, history=None, messa
     tokens_used = 0
     
     try:
-        response = requests.post(
+        response = http_client.post(
             get_chat_completions_url(profile),
             headers=headers,
             json={k: v for k, v in payload.items() if not k.startswith('_')},

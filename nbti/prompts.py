@@ -3,6 +3,38 @@
 import re
 
 from nbti.themes import get_theme, THEMES
+from nbti.cache import Cache, cache_enabled_from_config
+
+
+# 按 (phase, theme_id, style_name, kwargs) 缓存构建出的 system prompt，避免重复拼接大字符串
+_prompt_cache = Cache(enabled=True, default_ttl=3600, max_entries=1024)
+
+
+def _sync_prompt_cache_enabled():
+    """按配置同步 prompt 缓存开关（cache_enabled 缺失默认 True），返回当前是否启用"""
+    try:
+        _prompt_cache.enabled = cache_enabled_from_config()
+    except Exception:  # noqa: BLE001 — 配置不可用时安全降级为启用
+        _prompt_cache.enabled = True
+    return _prompt_cache.enabled
+
+
+def _prompt_cache_key(phase, theme_id, style_name, kwargs):
+    """构造缓存键：包含 phase/theme/style 及全部 kwargs（值统一 str 化以保证可哈希，避免错误复用）"""
+    kw_items = tuple(sorted((str(k), str(v)) for k, v in kwargs.items()))
+    return (phase, theme_id, style_name, kw_items)
+
+
+def _cached_build(key, builder):
+    """通用缓存包装：缓存开启时命中缓存，否则直算；两种路径结果逐字一致"""
+    if _sync_prompt_cache_enabled():
+        cached = _prompt_cache.get(key)
+        if cached is not None:
+            return cached
+        value = builder()
+        _prompt_cache.set(key, value)
+        return value
+    return builder()
 
 
 BASE_STYLES = ["暴躁老油条", "冷面纪录片", "戏精闺蜜"]
@@ -258,6 +290,12 @@ def get_base_style_prompts(style_name, theme_id):
 
 
 def build_init_prompt(theme_id, style_name):
+    """构建 init 阶段 system prompt（带缓存，缓存键含 phase/theme/style）"""
+    key = _prompt_cache_key('init', theme_id, style_name, {})
+    return _cached_build(key, lambda: _render_init_prompt(theme_id, style_name))
+
+
+def _render_init_prompt(theme_id, style_name):
     p = get_base_style_prompts(style_name, theme_id)
     return f"""{p['persona']}
 
@@ -283,6 +321,12 @@ ASSESS JSON 字段顺序固定：phase, q, comment, scene, options, nb, bh, tf, 
 
 
 def build_assess_prompt(theme_id, style_name, **kwargs):
+    """构建 assess 阶段 system prompt（带缓存，缓存键含 phase/theme/style 及全部 kwargs）"""
+    key = _prompt_cache_key('assess', theme_id, style_name, kwargs)
+    return _cached_build(key, lambda: _render_assess_prompt(theme_id, style_name, **kwargs))
+
+
+def _render_assess_prompt(theme_id, style_name, **kwargs):
     p = get_base_style_prompts(style_name, theme_id)
     template = f"""{p['persona']}
 
@@ -329,6 +373,12 @@ ASSESS JSON 字段顺序固定：phase, q, comment, scene, options, nb, bh, tf, 
 
 
 def build_result_prompt(theme_id, style_name, **kwargs):
+    """构建 result 阶段 system prompt（带缓存，缓存键含 phase/theme/style 及彩蛋等全部 kwargs）"""
+    key = _prompt_cache_key('result', theme_id, style_name, kwargs)
+    return _cached_build(key, lambda: _render_result_prompt(theme_id, style_name, **kwargs))
+
+
+def _render_result_prompt(theme_id, style_name, **kwargs):
     p = get_base_style_prompts(style_name, theme_id)
     theme = get_theme(theme_id)
     

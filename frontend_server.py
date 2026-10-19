@@ -4,6 +4,7 @@
 import os
 import re
 import sys
+import gzip
 import requests
 from flask import Flask, send_from_directory, send_file, request, Response
 
@@ -18,19 +19,67 @@ BACKEND_URL = 'http://127.0.0.1:8081'
 # 允许的文件类型
 ALLOWED_EXTENSIONS = {'.html', '.css', '.js', '.svg', '.png', '.jpg', '.ico', '.json'}
 
+# 模块级共享 Session：复用到后端的 TCP 连接，减少代理转发建连开销
+_SESSION = requests.Session()
+
+# 可压缩的静态文本资源扩展名（SSE/二进制一律不压缩）
+_GZIP_TEXT_EXTENSIONS = {'.html', '.css', '.js', '.json', '.svg'}
+
 # 分享 id 合法字符集（与后端 is_valid_conversation_id 一致：字母/数字/下划线/连字符，最长 64）
 _SHARE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
+
+def _client_accepts_gzip():
+    """解析客户端 Accept-Encoding，判断是否允许 gzip（显式 q=0 视为拒绝）。"""
+    accept = request.headers.get('Accept-Encoding', '')
+    for part in accept.split(','):
+        token = part.strip()
+        if not token:
+            continue
+        name, _, params = token.partition(';')
+        if name.strip().lower() == 'gzip':
+            return 'q=0' not in params.replace(' ', '').lower()
+    return False
+
+
+def _maybe_gzip(resp, ext):
+    """对静态文本资源在客户端支持 gzip 时压缩。
+
+    严格要求：非文本扩展名（SSE/二进制）不压缩；非 200 响应不压缩；
+    已带 Content-Encoding 的响应不二次压缩。
+    """
+    if ext not in _GZIP_TEXT_EXTENSIONS:
+        return resp
+    if resp.status_code != 200 or request.method == 'HEAD':
+        return resp
+    if resp.headers.get('Content-Encoding'):
+        return resp
+    if not _client_accepts_gzip():
+        return resp
+
+    # send_file/send_from_directory 返回 direct passthrough 响应，需先关闭该模式才能读取内容
+    resp.direct_passthrough = False
+    body = resp.get_data()
+    compressed = gzip.compress(body, compresslevel=6)
+    headers = {k: v for k, v in resp.headers.items()
+               if k.lower() not in ('content-length', 'content-encoding')}
+    headers['Content-Encoding'] = 'gzip'
+    headers['Content-Length'] = str(len(compressed))
+    headers['Vary'] = 'Accept-Encoding'
+    return Response(compressed, resp.status_code, headers)
+
+
 @app.route('/')
 def index():
-    return send_from_directory(STATIC_DIR, 'index.html')
+    return _maybe_gzip(send_from_directory(STATIC_DIR, 'index.html'), '.html')
+
 
 @app.route('/share/<sid>')
 def share_page(sid):
     """只读分享页：非法 id 直接 404，合法返回 share.html（数据由页面内 JS 调 /api/share/<id> 加载）"""
     if not _SHARE_ID_RE.match(sid):
         return "Not Found", 404
-    return send_from_directory(STATIC_DIR, 'share.html')
+    return _maybe_gzip(send_from_directory(STATIC_DIR, 'share.html'), '.html')
 
 @app.route('/api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy_api(path):
@@ -47,7 +96,7 @@ def proxy_api(path):
     data = request.get_data()
     
     try:
-        resp = requests.request(
+        resp = _SESSION.request(
             method=request.method,
             url=url,
             headers=headers,
@@ -86,7 +135,7 @@ def serve_file(filename):
     
     file_path = os.path.join(STATIC_DIR, filename)
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        return send_file(file_path)
+        return _maybe_gzip(send_file(file_path), ext)
     return "Not Found", 404
 
 if __name__ == '__main__':

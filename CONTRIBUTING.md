@@ -28,15 +28,20 @@ pytest tests/ -v
 
 ```
 nbti/                  # Backend package
-  prompts.py           # LLM prompt presets (3 personas)
+  providers.py         # Model vendor registry (Provider adapters)
+  http_client.py       # Shared httpx connection-pool client
+  cache.py             # In-process TTL cache
+  storage.py           # Storage backends (FileStorage / RedisStorage)
+  conversation.py      # Conversation store facade over the storage backend
+  prompts.py           # LLM prompt presets
   config.py            # Configuration management
-  conversation.py      # Conversation storage
-  llm.py               # LLM client & streaming
+  llm.py               # LLM client & streaming (delegates vendor specifics to providers.py)
   utils.py             # JSON parsing, normalization
   app.py               # Flask app & API routes
+js/                    # Frontend ES Modules (state/util/api/render/stream/preload/session/skeleton/warmup/fastmode/main)
 server.py              # Entry point
 frontend_server.py     # Static file server + proxy
-app.js                 # Frontend logic
+app.js                 # Thin bootstrap shell for the js/ modules
 avatar-generator.js    # SVG avatar generator
 style.css              # Styles
 index.html             # Main page
@@ -60,14 +65,43 @@ config.css             # Admin panel styles
 
 ## How to Add a New LLM Vendor
 
-1. In `nbti/llm.py`:
-   - Add vendor-specific logic in `build_thinking_params()` if the vendor has unique thinking/reasoning params
-   - Add URL construction in `get_chat_completions_url()` if the vendor uses a non-standard endpoint path
-   - Add response format handling in `build_response_format()` if the vendor supports JSON schema
+Vendors are **registered adapters** — you do **not** need to modify `app.py` or `llm.py`.
+The registry lives in `nbti/providers.py`; `llm.py` and the API simply look vendors up by `vendor_id`.
 
-2. In `config.html`:
-   - Add the vendor to the `<select>` dropdown in `renderProfiles()`
-   - Add default values in `VENDOR_DEFAULTS`
+1. In `nbti/providers.py`, define a `Provider` subclass:
+
+   ```python
+   class MyVendorProvider(Provider):
+       vendor_id = "myvendor"                 # unique id, used in config profiles
+       label = "My Vendor"                    # display name for the config dropdown
+       supports_streaming = True
+       supports_json_schema = False           # True if the API accepts strict json_schema
+       supports_thinking = True
+       default_base_url = "https://api.myvendor.com/v1"
+       default_model = "my-default-model"
+
+       # Only override the methods whose default behavior differs:
+       # def chat_completions_url(self, profile): ...         # non-standard endpoint path
+       # def build_thinking_params(self, profile): ...        # custom thinking/reasoning params
+       # def _enabled_thinking_params(self, effort): ...      # params sent when thinking is enabled
+       # def build_response_format(self, profile, phase): ... # JSON schema / json_object handling
+   ```
+
+2. Register it so it becomes available everywhere:
+
+   ```python
+   # in nbti/providers.py, alongside the built-in registrations
+   register_provider(MyVendorProvider())
+   ```
+
+   Registered vendors are exposed automatically via `GET /api/providers` (the config panel
+   renders its vendor dropdown from this list), so **no `config.html` edits are required**.
+
+3. Users then set `"vendor": "myvendor"` in any LLM profile. Unknown or missing vendor ids
+   fall back to the generic `openai_compatible` adapter.
+
+4. Add a test in `tests/test_providers.py` asserting the new adapter's URL / thinking /
+   `response_format` behavior.
 
 ## How to Add a New Personality Type
 
@@ -81,8 +115,11 @@ config.css             # Admin panel styles
 # Unit tests only (no server needed)
 pytest tests/test_config.py tests/test_normalize.py tests/test_parsing.py tests/test_easter_eggs.py tests/test_commit_history.py -v
 
+# Engineering / infrastructure tests (no server needed)
+pytest tests/test_providers.py tests/test_cache.py tests/test_storage_backends.py tests/test_compat.py -v
+
 # Integration tests (need mocked LLM)
-pytest tests/test_api_integration.py -v
+pytest tests/test_api_integration.py tests/test_stream_contract.py tests/test_preload_batch.py -v
 
 # All tests
 pytest tests/ -v

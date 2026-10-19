@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from nbti.prompts import get_prompt_presets
+from nbti.providers import normalize_vendor
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,15 @@ DEFAULT_CONFIG = {
     "min_questions": 12,
     "preload_enabled": True,
     "easter_egg_enabled": True,
+    "cache_enabled": True,
+    "storage_backend": "file",
+    "redis_url": "",
+    # 单次延迟削减：fast_mode 默认关闭（不改变现有行为）。
+    # 开启后 assess/init 阶段关闭 thinking，并将 max_tokens 收敛到 phase_max_tokens
+    # 的阶段上限；phase_max_tokens 为空 dict 时不限制（语义示例：
+    # {"assess": 800, "init": 800, "result": 2000}）。
+    "fast_mode": False,
+    "phase_max_tokens": {},
     "active_preset": "暴躁老油条",
     "prompt_presets": get_prompt_presets(),
     "easter_eggs": {
@@ -92,11 +102,25 @@ DEFAULT_CONFIG = {
 }
 
 
+def _normalize_profile_vendors(config):
+    """将 llm_profiles 中缺失/未知的 vendor 规范化为注册表可识别值（未知 → openai_compatible）。
+
+    已知 vendor（doubao/longcat/deepseek/lmstudio）保持不变。
+    """
+    profiles = config.get("llm_profiles")
+    if not isinstance(profiles, list):
+        return config
+    for p in profiles:
+        if isinstance(p, dict):
+            p["vendor"] = normalize_vendor(p.get("vendor"))
+    return config
+
+
 def _migrate_old_config(config):
     """将旧格式 config.json 自动迁移为 profile 格式"""
-    # 如果已有 llm_profiles，说明已经是新格式，跳过
+    # 如果已有 llm_profiles，说明已经是新格式，跳过（仅规范化 vendor）
     if "llm_profiles" in config and isinstance(config.get("llm_profiles"), list):
-        return config
+        return _normalize_profile_vendors(config)
 
     old_models = {
         "init": config.get("model_init", ""),
@@ -139,6 +163,7 @@ def _migrate_old_config(config):
     config["llm_profiles"] = profiles
     config["active_profile"] = profiles[0]["name"] if profiles else "默认"
     config["phase_profiles"] = phase_map
+    _normalize_profile_vendors(config)
 
     # 清理旧字段
     for old_key in ["api_key", "endpoint", "model_init", "model_assess", "model_result",
@@ -170,6 +195,8 @@ def load_config():
                 config = json.load(f)
             # 自动迁移旧格式
             config = _migrate_old_config(config)
+            # 规范化 llm_profiles 的 vendor（缺失/未知 → openai_compatible）
+            _normalize_profile_vendors(config)
             # 合并默认值
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:

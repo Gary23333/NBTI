@@ -1,11 +1,14 @@
+import os
+
 # Server socket
 bind = "0.0.0.0:8080"
 backlog = 2048
 
 # Worker processes
-# 会话存储为进程内 threading.Lock + 本地 JSON 文件（nbti/conversation.py），仅支持单 worker；
-# 多 worker 必然因文件竞争丢数据。横向扩容前需先将会话存储替换为外部存储（如 Redis）。
-workers = 1
+# 默认单 worker：会话存储为进程内 threading.Lock + 本地 JSON 文件（nbti/conversation.py），
+# 多 worker 必然因文件竞争丢数据。可用环境变量 NBTI_WORKERS 覆盖（默认 1）。
+# ⚠️ workers>1 需先启用 Redis 存储后端（NBTI_STORAGE_BACKEND=redis），否则文件后端会因多进程竞争丢数据。
+workers = int(os.environ.get("NBTI_WORKERS", "1") or "1")
 worker_class = "gthread"
 threads = 8
 

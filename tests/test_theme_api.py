@@ -131,7 +131,7 @@ class TestThemeInitFlow:
     def test_init_returns_first_question(self, env, theme_id, style):
         client, _, new_store = env
         conv_id = f"init-{theme_id}-{KEY_STYLES.index(style)}"
-        with patch('nbti.app.requests.post',
+        with patch('nbti.app.http_client.post',
                    return_value=_mock_llm_ok(make_assess(1))) as mock_post:
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": "开始测试",
@@ -164,7 +164,7 @@ class TestThemeAnswerFlow:
     def test_answer_advances_to_next_question(self, env, theme_id):
         client, _, new_store = env
         conv_id = f"answer-{theme_id}"
-        with patch('nbti.app.requests.post',
+        with patch('nbti.app.http_client.post',
                    return_value=_mock_llm_ok(make_assess(1))):
             resp1 = client.post('/api/chat', content_type='application/json',
                                 data=json.dumps({"message": "开始测试",
@@ -172,7 +172,7 @@ class TestThemeAnswerFlow:
                                                  "theme": theme_id}))
         assert resp1.status_code == 200
 
-        with patch('nbti.app.requests.post',
+        with patch('nbti.app.http_client.post',
                    return_value=_mock_llm_ok(make_assess(2, "BH"))) as mock_post:
             resp2 = client.post('/api/chat', content_type='application/json',
                                 data=json.dumps({"message": "A",

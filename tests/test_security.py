@@ -177,7 +177,7 @@ class TestTestConnectionSSRF:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"model": "gemma"}
-        with patch('nbti.app.requests.post', return_value=mock_resp) as mock_post:
+        with patch('nbti.app.http_client.post', return_value=mock_resp) as mock_post:
             resp = client.post('/api/config/test-connection',
                                content_type='application/json',
                                data=json.dumps({"base_url": "http://192.168.5.22:1234", "api_key": "lm-studio", "model": "gemma"}))

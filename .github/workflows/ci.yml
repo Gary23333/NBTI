@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -33,6 +33,8 @@ jobs:
           node --check share-poster.js
           node --check compat-data.js
           node --check sw.js
+          # js/ 下的前端 ES Module（import/export）：node 22+ 默认检测模块语法
+          for f in js/*.js; do node --check "$f"; done
       - name: Run tests
         run: |
           # tests/e2e：Playwright 手工端到端测试，需人工启动完整环境，CI 不跑

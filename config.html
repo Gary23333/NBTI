@@ -182,6 +182,51 @@ let collapsedProfiles = new Set();   // 折叠状态（按 profile name）
 let activePreset = '暴躁老油条';
 let adminToken = localStorage.getItem('nbti_admin_token') || '';
 
+// 供应商下拉：优先从 /api/providers 动态渲染；请求失败回退到内置 4 项，避免白屏
+const VENDOR_FALLBACK = [
+  { vendor_id: 'doubao', label: '豆包' },
+  { vendor_id: 'deepseek', label: 'DeepSeek' },
+  { vendor_id: 'lmstudio', label: 'LM Studio' },
+  { vendor_id: 'longcat', label: 'LongCat' }
+];
+let providers = VENDOR_FALLBACK.slice();
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+async function loadProviders() {
+  try {
+    const resp = await fetch(`${API_URL}/api/providers`);
+    if (!resp.ok) throw new Error('providers ' + resp.status);
+    const data = await resp.json();
+    if (Array.isArray(data) && data.length) {
+      providers = data.filter(p => p && p.vendor_id);
+    }
+  } catch (e) {
+    providers = VENDOR_FALLBACK.slice();   // 失败回退，避免下拉为空导致白屏
+  }
+}
+
+// 供应商配色（内联样式）：覆盖内置供应商，未知 vendor 走中性兜底
+function vendorColors(vendor) {
+  switch (vendor) {
+    case 'deepseek': return { bg: 'rgba(52,211,153,0.15)', color: 'var(--accent3)', border: 'rgba(52,211,153,0.3)' };
+    case 'lmstudio': return { bg: 'rgba(244,114,182,0.15)', color: 'var(--accent)', border: 'rgba(244,114,182,0.3)' };
+    case 'longcat': return { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: 'rgba(251,191,36,0.3)' };
+    case 'doubao': return { bg: 'rgba(96,165,250,0.15)', color: 'var(--accent2)', border: 'rgba(96,165,250,0.3)' };
+    default: return { bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' };
+  }
+}
+
+function vendorSelectStyle(vendor) {
+  const c = vendorColors(vendor);
+  return `font-size:0.7rem;padding:2px 8px;border-radius:100px;background:${c.bg};color:${c.color};border:1px solid ${c.border};cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;`;
+}
+
 // 所有 /api/config 请求自动携带管理令牌
 function authHeaders(extra) {
   const h = Object.assign({}, extra || {});
@@ -266,6 +311,15 @@ function renderProfiles() {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.padding = isCollapsed ? '14px 20px' : '20px';
+
+    // 供应商下拉选项：动态来自 /api/providers；若当前 vendor 不在列表中则追加一项兜底
+    let vendorOptionsHtml = providers.map(v =>
+      `<option value="${escAttr(v.vendor_id)}" ${vendor === v.vendor_id ? 'selected' : ''}>${escHtml(v.label || v.vendor_id)}</option>`
+    ).join('');
+    if (!providers.some(v => v.vendor_id === vendor)) {
+      vendorOptionsHtml += `<option value="${escAttr(vendor)}" selected>${escHtml(vendor)}</option>`;
+    }
+
     card.innerHTML = `
       <!-- ===== 头部条（始终可见） ===== -->
       <div class="profile-card-header" onclick="toggleCollapse('${escAttr(p.name)}')">
@@ -279,11 +333,8 @@ function renderProfiles() {
             onclick="event.stopPropagation()"
             onchange="onProfileNameChange(${idx}, this.value)"
             class="profile-name-input">
-          <select id="vendor-select-${idx}" onchange="event.stopPropagation(); onVendorChange(${idx}, this.value)" style="font-size:0.7rem;padding:2px 8px;border-radius:100px;background:${vendor==='deepseek'?'rgba(52,211,153,0.15)':vendor==='lmstudio'?'rgba(244,114,182,0.15)':vendor==='longcat'?'rgba(251,191,36,0.15)':'rgba(96,165,250,0.15)'};color:${vendor==='deepseek'?'var(--accent3)':vendor==='lmstudio'?'var(--accent)':vendor==='longcat'?'#fbbf24':'var(--accent2)'};border:1px solid ${vendor==='deepseek'?'rgba(52,211,153,0.3)':vendor==='lmstudio'?'rgba(244,114,182,0.3)':vendor==='longcat'?'rgba(251,191,36,0.3)':'rgba(96,165,250,0.3)'};cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;" onclick="event.stopPropagation()">
-            <option value="doubao" ${vendor==='doubao'?'selected':''}>豆包</option>
-            <option value="deepseek" ${vendor==='deepseek'?'selected':''}>DeepSeek</option>
-            <option value="lmstudio" ${vendor==='lmstudio'?'selected':''}>LM Studio</option>
-            <option value="longcat" ${vendor==='longcat'?'selected':''}>LongCat</option>
+          <select id="vendor-select-${idx}" onchange="event.stopPropagation(); onVendorChange(${idx}, this.value)" style="${vendorSelectStyle(vendor)}" onclick="event.stopPropagation()">
+            ${vendorOptionsHtml}
           </select>
         </div>
         <div class="header-right">
@@ -461,18 +512,21 @@ function updatePhaseVendorBadge(phase) {
   const name = phaseProfiles[phase];
   const profile = profiles.find(p => p.name === name);
   if (profile) {
-    if (profile.vendor === 'deepseek') {
-      badge.textContent = 'DeepSeek';
-      badge.className = 'phase-vendor deepseek';
-    } else if (profile.vendor === 'lmstudio') {
-      badge.textContent = 'LM Studio';
-      badge.className = 'phase-vendor lmstudio';
-    } else if (profile.vendor === 'longcat') {
-      badge.textContent = 'LongCat';
-      badge.className = 'phase-vendor longcat';
+    // 已知供应商用固定徽章；未知 vendor 走中性兜底徽章
+    const known = {
+      doubao: { label: '豆包', cls: 'doubao' },
+      deepseek: { label: 'DeepSeek', cls: 'deepseek' },
+      lmstudio: { label: 'LM Studio', cls: 'lmstudio' },
+      longcat: { label: 'LongCat', cls: 'longcat' },
+      openai_compatible: { label: 'OpenAI 兼容', cls: 'openai_compatible' }
+    };
+    const meta = known[profile.vendor];
+    if (meta) {
+      badge.textContent = meta.label;
+      badge.className = `phase-vendor ${meta.cls}`;
     } else {
-      badge.textContent = '豆包';
-      badge.className = 'phase-vendor doubao';
+      badge.textContent = profile.vendor || '未知';
+      badge.className = 'phase-vendor neutral';
     }
   } else {
     badge.textContent = '';
@@ -501,7 +555,9 @@ const VENDOR_DEFAULTS = {
   doubao: { base_url: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-seed-2-0-mini-260428' },
   deepseek: { base_url: 'https://api.deepseek.com', model: 'deepseek-chat' },
   lmstudio: { base_url: 'http://192.168.5.22:1234', model: 'google/gemma-4-e4b' },
-  longcat: { base_url: 'https://api.longcat.chat', model: 'LongCat-Flash-Chat' }
+  longcat: { base_url: 'https://api.longcat.chat', model: 'LongCat-Flash-Chat' },
+  // 通用 OpenAI 兼容：示例 endpoints，按实际服务替换
+  openai_compatible: { base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' }
 };
 
 function onVendorChange(idx, newVendor) {
@@ -725,13 +781,6 @@ async function resetConfig() {
   }
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escAttr(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
 function updateQuestionHints() {
   const minEl = document.getElementById('min-questions');
   const maxEl = document.getElementById('max-questions');
@@ -745,7 +794,8 @@ document.getElementById('min-questions').addEventListener('input', updateQuestio
 document.getElementById('max-questions').addEventListener('input', updateQuestionHints);
 
 document.getElementById('admin-token-input').value = adminToken;
-loadConfig();
+// 先拉取供应商元数据（失败自动回退内置），再加载配置渲染，避免下拉为空
+loadProviders().then(loadConfig);
 </script>
 </body>
 </html>

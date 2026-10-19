@@ -113,6 +113,14 @@ window.addEventListener('load', function () {
             <span>雷达维度分析</span>
           </div>
         </div>
+        <div class="ready-fast-mode">
+          <label class="fast-mode-toggle" for="fast-mode-toggle">
+            <input type="checkbox" id="fast-mode-toggle" class="fast-mode-input">
+            <span class="fast-mode-track" aria-hidden="true"><span class="fast-mode-thumb"></span></span>
+            <span class="fast-mode-label">⚡ 快速模式</span>
+          </label>
+          <div class="fast-mode-status" id="fast-mode-status">⚡ 已开启快速模式 · 优先预载下一题</div>
+        </div>
         <div class="ready-actions">
           <button class="btn btn-ghost" onclick="goBackToStyle()">
             ← 重选风格
@@ -134,9 +142,21 @@ window.addEventListener('load', function () {
     </div>
 
     <div id="question-area">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p style="margin-top: 12px;">正在加载...</p>
+      <!-- 静态骨架：进入测试页瞬间即呈现结构化占位，避免空白或仅 spinner -->
+      <div class="comment-bubble skeleton-comment">
+        <div class="sk-line sk-line-40"></div>
+      </div>
+      <div class="question-card skeleton-card">
+        <div class="question-label">第 1 题</div>
+        <div class="sk-line sk-line-90"></div>
+        <div class="sk-line sk-line-70"></div>
+        <div class="skeleton-caption">正在生成题目<span class="typing-dots"></span></div>
+      </div>
+      <div class="options skeleton-options">
+        <div class="skeleton-option"><span class="sk-letter">A</span><div class="sk-line sk-line-60"></div></div>
+        <div class="skeleton-option"><span class="sk-letter">B</span><div class="sk-line sk-line-60"></div></div>
+        <div class="skeleton-option"><span class="sk-letter">C</span><div class="sk-line sk-line-60"></div></div>
+        <div class="skeleton-option"><span class="sk-letter">D</span><div class="sk-line sk-line-60"></div></div>
       </div>
     </div>
   </div>
@@ -154,7 +174,7 @@ window.addEventListener('load', function () {
 <script src="avatar-generator.js"></script>
 <script src="radar-chart.js"></script>
 <script src="share-poster.js"></script>
-<script src="app.js"></script>
+<script type="module" src="js/main.js"></script>
 
 </body>
 </html>

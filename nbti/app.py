@@ -3,18 +3,23 @@
 import copy
 import os
 import time
+import json
 import uuid
 import logging
 import threading
-import requests
+import httpx
+import concurrent.futures
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, send_from_directory, Response
 
+from nbti import http_client
 from nbti.config import (
     load_config, save_config, find_profile_for_phase, find_profile,
     get_model_for_phase, _migrate_old_config, DEFAULT_CONFIG, CONFIG_FILE
 )
 from nbti.conversation import store, is_valid_conversation_id, ConversationStore
+from nbti.providers import list_provider_metadata
+from nbti.storage import RedisStorage
 from nbti.llm import (
     build_thinking_params, build_response_format, get_chat_completions_url,
     stream_generator
@@ -140,6 +145,58 @@ def _parse_chat_body(data):
     return message, data
 
 
+def _build_llm_payload(profile, messages, phase, config, expected_q=None):
+    """构建发往 LLM 的请求 payload（chat / preload 共用）。
+
+    默认（fast_mode=False）与改造前逐字一致：model/messages/temperature/max_tokens
+    + profile 的 thinking 参数 + 阶段 response_format。
+
+    fast_mode=True 时仅对 assess/init 阶段做单次延迟削减：
+      - 不发送 thinking 参数（关闭思考）；
+      - max_tokens 取 profile 配置值与 config.phase_max_tokens 阶段上限的较小值。
+    result 阶段与默认分支保持一致。绝不修改传入的 profile。
+    """
+    payload = {
+        "model": profile['model'],
+        "messages": messages,
+        "temperature": profile.get('temperature', 0.9),
+        "max_tokens": profile.get('max_tokens', 2000),
+    }
+    if expected_q:
+        payload['_expected_q'] = expected_q
+
+    if bool(config.get('fast_mode', False)) and phase in ('init', 'assess'):
+        # fast_mode：assess/init 关闭思考（不发 thinking 参数）并收敛 max_tokens
+        cap = (config.get('phase_max_tokens') or {}).get(phase)
+        if isinstance(cap, (int, float)) and cap > 0:
+            payload['max_tokens'] = min(int(payload['max_tokens']), int(cap))
+    else:
+        payload.update(build_thinking_params(profile))
+
+    rf = build_response_format(profile, phase)
+    if rf:
+        payload.update(rf)
+
+    return payload
+
+
+def _start_preload_sse(answer, tokens_used, conversation_id):
+    """首题预热命中草稿时，构造与流式路径字段一致的 SSE 响应（first_token/chunk/done）。"""
+    events = [
+        {"event": "first_token", "timestamp": int(time.time() * 1000)},
+        {"event": "chunk", "content": answer},
+        {"event": "done", "answer": answer, "tokens_used": tokens_used},
+    ]
+    if conversation_id:
+        events[-1]["conversation_id"] = conversation_id
+    body = ''.join(f'data: {json.dumps(e, ensure_ascii=False)}\n\n' for e in events)
+    return Response(
+        body,
+        mimetype='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+    )
+
+
 class _RateLimiter:
     """IP 级滑动窗口限流器（进程内 dict + 锁，仅适配单 worker 部署，见 gunicorn.conf.py）"""
 
@@ -234,14 +291,27 @@ def create_app():
     @app.route('/api/health', methods=['GET'])
     def health():
         config = load_config()
+        # storage_backend 反映实际生效的后端（Redis 不可用时已回退文件后端）
+        backend = getattr(store, '_backend', None)
+        storage_backend = 'redis' if isinstance(backend, RedisStorage) else 'file'
         return jsonify({
             "status": "ok",
             "profiles": len(config.get("llm_profiles", [])),
             "active_preset": config.get("active_preset", ""),
             "themes_count": len(get_themes()),
             "styles_count": len(ALL_STYLES),
-            "version": "3.0.0-multitheme"
+            "version": "3.1.0-multitheme",
+            "storage_backend": storage_backend,
+            "cache_enabled": bool(config.get("cache_enabled", True)),
+            "fast_mode": bool(config.get("fast_mode", False)),
+            "providers_count": len(list_provider_metadata())
         })
+
+    # ---- Providers endpoint ----
+    @app.route('/api/providers', methods=['GET'])
+    def providers():
+        """返回已注册供应商的能力元数据（供配置面板动态渲染下拉，不含任何密钥）"""
+        return jsonify(list_provider_metadata())
 
     # ---- Themes & Styles endpoints ----
     @app.route('/api/themes', methods=['GET'])
@@ -263,6 +333,94 @@ def create_app():
             for k, v in kwargs.items():
                 result = result.replace('{' + k + '}', str(v))
             return result
+
+    # ---- 预载/预热共用工具 ----
+    def _build_preload_context(conversation_id, theme_id, style_name, config, history):
+        """预计算与具体选项无关的预载上下文（easter eggs、场景文本、题数上下限）。"""
+        eggs = config.get('easter_eggs', {})
+        egg_params = {
+            f'easter_{key}': str(eggs.get(key, 1))
+            for key in ['schrodinger', 'hexagon', 'buddha', 'double', 'mouthpiece']
+        }
+        scenes = store.get_scenes(conversation_id) if conversation_id else []
+        scenes_text = '\n'.join([f"- {s}" for s in scenes]) if scenes else '（暂无，你是第一题）'
+        return {
+            'conversation_id': conversation_id,
+            'theme_id': theme_id,
+            'style_name': style_name,
+            'config': config,
+            'history': history,
+            'egg_params': egg_params,
+            'scenes_text': scenes_text,
+            'min_q': int(config.get("min_questions", 20)),
+            'max_q': int(config.get("max_questions", 25)),
+        }
+
+    def _call_llm_for_phase(ctx, message, phase, expected_q, system_prompt):
+        """按供应商注册表向 LLM 发起一次非流式调用并返回 (answer, tokens_used)。
+
+        失败时抛异常，由各端点捕获后转为错误响应；单分支失败不影响其它分支。
+        """
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in trim_history(ctx['history']):
+            if msg.get("role") != "system":
+                messages.append(msg)
+        messages.append({"role": "user", "content": message})
+
+        profile = find_profile_for_phase(ctx['config'], phase)
+        if not profile:
+            raise RuntimeError("No LLM profile configured")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {profile['api_key']}"
+        }
+        payload = _build_llm_payload(profile, messages, phase, ctx['config'], expected_q)
+        response = http_client.post(
+            get_chat_completions_url(profile),
+            headers=headers,
+            json={k: v for k, v in payload.items() if not k.startswith('_')},
+            timeout=120
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"API error: {response.status_code}")
+        result = response.json()
+        answer = result['choices'][0]['message']['content']
+        answer = normalize_answer_question(answer, expected_q, ctx['config'])
+        tokens_used = result.get('usage', {}).get('total_tokens', 0)
+        return answer, tokens_used
+
+    def _generate_preloaded_message(ctx, message):
+        """为单条消息生成预载答案（与 /api/chat/preload 的非流式分支一致）。
+
+        result 分支（含 [PHASE:RESULT] / [CAN_CONCLUDE:true] 前缀）与 assess 分支
+        （注入题号控制）分别构造独立的 system prompt / messages / payload。
+        """
+        if '[PHASE:RESULT]' in message or '[CAN_CONCLUDE:true]' in message:
+            phase = 'result'
+            expected_q = None
+            system_prompt = _get_dynamic_prompt(
+                ctx['theme_id'], ctx['style_name'], 'result', **ctx['egg_params']
+            )
+        else:
+            phase = 'assess'
+            expected_q = expected_next_question(ctx['history'])
+            system_prompt = _get_dynamic_prompt(
+                ctx['theme_id'], ctx['style_name'], 'assess',
+                previous_scenes=ctx['scenes_text'],
+                min_questions=str(ctx['min_q']),
+                min_questions_minus_1=str(ctx['min_q'] - 1),
+                max_questions=str(ctx['max_q'])
+            )
+            system_prompt = inject_question_control(system_prompt, expected_q)
+        return _call_llm_for_phase(ctx, message, phase, expected_q, system_prompt)
+
+    def _generate_init_answer(ctx, message):
+        """生成开场/第一题（phase=init, q=1），与 /api/chat 的 is_new_session 分支一致。"""
+        expected_q = 1
+        system_prompt = _get_dynamic_prompt(ctx['theme_id'], ctx['style_name'], 'init')
+        system_prompt = inject_question_control(system_prompt, expected_q)
+        return _call_llm_for_phase(ctx, message, 'init', expected_q, system_prompt)
 
     # ---- Chat endpoints ----
     @app.route('/api/chat', methods=['POST'])
@@ -288,6 +446,21 @@ def create_app():
             store.save_history(conversation_id, [])
 
         is_new_session = message in ['开始测试', '开始'] or not store.get_history(conversation_id)
+
+        # 首题预热命中：若该会话已存在键 "开始测试" 的完整预载草稿，直接提交入库并返回，
+        # 跳过重新生成。无草稿（或草稿残缺）时完全走原有逻辑，行为不变。
+        if message in ['开始测试', '开始'] and conversation_id:
+            warmup_draft = store.get_preload_draft(conversation_id, '开始测试')
+            if warmup_draft and is_complete_assess(warmup_draft.get('answer', ''), 1):
+                answer = warmup_draft.get('answer', '')
+                tokens_used = warmup_draft.get('tokens_used', 0)
+                commit_answer_to_history(conversation_id, message, answer, 'init')
+                store.clear_preloads(conversation_id)
+                logger.info(f"[CHAT] 命中首题预热草稿，跳过重新生成 | id={conversation_id} | tokens={tokens_used}")
+                if use_stream:
+                    return _start_preload_sse(answer, tokens_used, conversation_id)
+                return jsonify({"answer": answer, "conversation_id": conversation_id, "tokens_used": tokens_used})
+
         theme_id = data.get('theme', 'workplace')
         style_name = data.get('style', '暴躁老油条')
         
@@ -350,20 +523,7 @@ def create_app():
             "Authorization": f"Bearer {profile['api_key']}"
         }
 
-        payload = {
-            "model": profile['model'],
-            "messages": messages,
-            "temperature": profile.get('temperature', 0.9),
-            "max_tokens": profile.get('max_tokens', 2000)
-        }
-        if expected_q:
-            payload['_expected_q'] = expected_q
-
-        thinking_params = build_thinking_params(profile)
-        payload.update(thinking_params)
-        rf = build_response_format(profile, phase)
-        if rf:
-            payload.update(rf)
+        payload = _build_llm_payload(profile, messages, phase, config, expected_q)
 
         logger.info(f"[CHAT] call LLM | phase={phase} | q={expected_q} | profile={profile.get('name')} | model={profile['model']}")
 
@@ -375,7 +535,7 @@ def create_app():
             )
         else:
             try:
-                response = requests.post(
+                response = http_client.post(
                     get_chat_completions_url(profile),
                     headers=headers,
                     json={k: v for k, v in payload.items() if not k.startswith('_')},
@@ -470,20 +630,7 @@ def create_app():
             "Authorization": f"Bearer {profile['api_key']}"
         }
 
-        payload = {
-            "model": profile['model'],
-            "messages": messages,
-            "temperature": profile.get('temperature', 0.9),
-            "max_tokens": profile.get('max_tokens', 2000)
-        }
-        if expected_q:
-            payload['_expected_q'] = expected_q
-
-        thinking_params = build_thinking_params(profile)
-        payload.update(thinking_params)
-        rf = build_response_format(profile, phase)
-        if rf:
-            payload.update(rf)
+        payload = _build_llm_payload(profile, messages, phase, config, expected_q)
 
         if use_stream:
             return Response(
@@ -493,7 +640,7 @@ def create_app():
             )
         else:
             try:
-                response = requests.post(
+                response = http_client.post(
                     get_chat_completions_url(profile),
                     headers=headers,
                     json={k: v for k, v in payload.items() if not k.startswith('_')},
@@ -571,6 +718,129 @@ def create_app():
         request.args = MultiDict([('stream', '1')])
         return preload()
 
+    @app.route('/api/chat/preload/batch', methods=['POST'])
+    def preload_batch():
+        """批量并行预载：为每个选项并发生成草稿并逐分支落库。
+
+        请求体：{ conversation_id, theme, style, options: [], can_conclude }（message 亦可兼容）
+        返回：{ conversation_id, results: { "<option>": {answer, tokens_used} 或 {error} } }
+        单分支失败不影响其它分支；整体按 rate_limit_per_minute 限流一次。
+        """
+        parsed_body = _parse_chat_body(request.json)
+        if parsed_body is None:
+            return jsonify({"error": "Invalid JSON body"}), 400
+        message, data = parsed_body
+        conversation_id = data.get('conversation_id', '')
+        if _invalid_conversation_id(conversation_id):
+            logger.warning(f"[PRELOAD_BATCH] 非法 conversation_id: {conversation_id!r}")
+            return jsonify({"error": "Invalid conversation_id"}), 400
+        config = load_config()
+        limited = _rate_limit_exceeded(config)
+        if limited:
+            return limited
+
+        can_conclude = bool(data.get('can_conclude', False))
+        # options 为字符串列表时以其为准；否则回退到 message（单条）以兼容旧调用
+        option_texts = []
+        raw_options = data.get('options')
+        if isinstance(raw_options, list):
+            for opt in raw_options:
+                if not isinstance(opt, str):
+                    opt = str(opt)
+                opt = opt.strip()
+                if opt and opt not in option_texts:
+                    option_texts.append(opt)
+        if not option_texts:
+            if not message:
+                return jsonify({"error": "Missing options"}), 400
+            option_texts = [message]
+
+        if conversation_id:
+            theme_id = _normalize_theme_id(store.get_theme(conversation_id))
+            style_name = store.get_style(conversation_id)
+            history = list(store.get_history(conversation_id))
+        else:
+            theme_id = _normalize_theme_id(data.get('theme', 'workplace'))
+            style_name = data.get('style', '暴躁老油条')
+            history = []
+
+        ctx = _build_preload_context(conversation_id, theme_id, style_name, config, history)
+        expected_q = expected_next_question(history)
+        logger.info(f"[PRELOAD_BATCH] id={conversation_id} | options={len(option_texts)} | can_conclude={can_conclude}")
+
+        def _generate_one(opt_text):
+            # 每个分支独立构造消息：can_conclude 时统一加 [CAN_CONCLUDE:true] 前缀
+            branch_message = f"[CAN_CONCLUDE:true] {opt_text}" if can_conclude else opt_text
+            try:
+                answer, tokens_used = _generate_preloaded_message(ctx, branch_message)
+            except Exception as e:  # noqa: BLE001 — 单分支失败不影响其它分支
+                logger.error(f"[PRELOAD_BATCH] 分支失败 | option={opt_text!r} | error={e}")
+                return opt_text, {"error": str(e)}
+            # 与既有 preload 一致：assess 阶段残缺草稿不入库（但仍返回答案供前端判定）
+            if conversation_id:
+                meta = parse_answer_meta(answer)
+                if meta.get('phase') == 'ASSESS' and not is_complete_assess(answer, expected_q):
+                    logger.warning(f"[PRELOAD_BATCH] 丢弃残缺草稿 | option={opt_text!r}")
+                else:
+                    store.save_preload_draft(conversation_id, branch_message, answer, tokens_used)
+            return opt_text, {"answer": answer, "tokens_used": tokens_used}
+
+        results = {}
+        max_workers = max(1, min(len(option_texts), 4))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_generate_one, opt) for opt in option_texts]
+            for fut in concurrent.futures.as_completed(futures):
+                opt_text, res = fut.result()
+                results[opt_text] = res
+
+        logger.info(f"[PRELOAD_BATCH] 完成 | id={conversation_id} | 分支数={len(results)}")
+        return jsonify({"conversation_id": conversation_id, "results": results})
+
+    @app.route('/api/chat/warmup', methods=['POST'])
+    def warmup():
+        """首题预热：生成开场/第一题并以键 "开始测试" 存入该会话的预载草稿。
+
+        请求体：{ conversation_id（可选）, theme, style }；无 conversation_id 则新建会话。
+        返回：{ conversation_id, answer, tokens_used }
+        """
+        data = request.json
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid JSON body"}), 400
+        conversation_id = data.get('conversation_id', '') or ''
+        if _invalid_conversation_id(conversation_id):
+            logger.warning(f"[WARMUP] 非法 conversation_id: {conversation_id!r}")
+            return jsonify({"error": "Invalid conversation_id"}), 400
+        config = load_config()
+        limited = _rate_limit_exceeded(config)
+        if limited:
+            return limited
+
+        theme_id = _normalize_theme_id(data.get('theme', 'workplace'))
+        style_name = data.get('style', '暴躁老油条')
+        if not conversation_id:
+            conversation_id = str(uuid.uuid4())
+            store.save_history(conversation_id, [])
+        store.set_theme(conversation_id, theme_id)
+        store.set_style(conversation_id, style_name)
+
+        history = list(store.get_history(conversation_id))
+        ctx = _build_preload_context(conversation_id, theme_id, style_name, config, history)
+        logger.info(f"[WARMUP] id={conversation_id} | theme={theme_id} | style={style_name}")
+
+        try:
+            answer, tokens_used = _generate_init_answer(ctx, '开始测试')
+        except Exception as e:  # noqa: BLE001 — 统一转 500 错误响应
+            logger.error(f"[WARMUP] 生成失败: {e}")
+            return jsonify({"error": str(e), "conversation_id": conversation_id}), 500
+
+        meta = parse_answer_meta(answer)
+        if meta.get('phase') == 'ASSESS' and is_complete_assess(answer, 1):
+            store.save_preload_draft(conversation_id, '开始测试', answer, tokens_used)
+        else:
+            logger.warning(f"[WARMUP] 首题草稿不完整，未入库 | id={conversation_id}")
+        logger.info(f"[WARMUP] OK | Q={meta.get('q')} | tokens={tokens_used}")
+        return jsonify({"conversation_id": conversation_id, "answer": answer, "tokens_used": tokens_used})
+
     # ---- Config endpoints ----
     @app.route('/api/config', methods=['GET'])
     def get_config():
@@ -631,7 +901,7 @@ def create_app():
 
         try:
             test_profile = {"base_url": base_url, "vendor": vendor}
-            resp = requests.post(
+            resp = http_client.post(
                 get_chat_completions_url(test_profile),
                 headers=headers, json=payload, timeout=15
             )
@@ -643,9 +913,9 @@ def create_app():
                 return jsonify({"success": False, "error": f"Auth failed ({resp.status_code})"}), 200
             else:
                 return jsonify({"success": False, "error": f"HTTP {resp.status_code}: {resp.text[:200]}"}), 200
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             return jsonify({"success": False, "error": "Timeout (15s)"}), 200
-        except requests.exceptions.ConnectionError:
+        except httpx.ConnectError:
             return jsonify({"success": False, "error": "Cannot connect to server"}), 200
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 200

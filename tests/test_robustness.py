@@ -97,7 +97,7 @@ class TestRateLimit:
         client, config_path, _ = env
         _set_rate_limit(config_path, 2)
         body = json.dumps({"message": "hi", "conversation_id": "rl-test-1"})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_500()):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_500()):
             r1 = client.post('/api/chat', content_type='application/json', data=body)
             r2 = client.post('/api/chat', content_type='application/json', data=body)
             r3 = client.post('/api/chat', content_type='application/json', data=body)
@@ -112,7 +112,7 @@ class TestRateLimit:
         client, config_path, _ = env
         _set_rate_limit(config_path, 1)
         body = json.dumps({"message": "hi", "conversation_id": "rl-test-2"})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_500()):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_500()):
             assert client.post('/api/chat', content_type='application/json', data=body).status_code == 500
             assert client.post('/api/chat', content_type='application/json', data=body).status_code == 429
             _rate_limiter.reset()
@@ -123,7 +123,7 @@ class TestRateLimit:
         client, config_path, _ = env
         _set_rate_limit(config_path, 1)
         body = json.dumps({"message": "hi", "conversation_id": "rl-test-3"})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_500()):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_500()):
             assert client.post('/api/chat', content_type='application/json', data=body).status_code == 500
             assert client.post('/api/chat', content_type='application/json', data=body).status_code == 429
             # 将窗口内记录回拨 61s，模拟窗口过期
@@ -137,7 +137,7 @@ class TestRateLimit:
         client, config_path, _ = env
         _set_rate_limit(config_path, 0)
         body = json.dumps({"message": "hi", "conversation_id": "rl-test-4"})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_500()):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_500()):
             for _ in range(40):
                 resp = client.post('/api/chat', content_type='application/json', data=body)
                 assert resp.status_code == 500
@@ -147,7 +147,7 @@ class TestRateLimit:
         client, config_path, _ = env
         _set_rate_limit(config_path, 1)
         body = json.dumps({"message": "hi", "conversation_id": "rl-test-5"})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_500()):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_500()):
             assert client.post('/api/chat', content_type='application/json', data=body,
                                headers={'X-Forwarded-For': '1.2.3.4'}).status_code == 500
             assert client.post('/api/chat', content_type='application/json', data=body,
@@ -173,7 +173,7 @@ class TestStreamCommit:
         client, _, new_store = env
         conv_id = 'stream-bad-1'
         new_store.save_history(conv_id, [])
-        with patch('nbti.llm.requests.post',
+        with patch('nbti.llm.http_client.post',
                    return_value=MockStreamResponse(['{"phase": "ASSESS", "q": 1, "com'])):
             resp = client.post('/api/chat?stream=1', content_type='application/json',
                                data=json.dumps({"message": "开始测试", "conversation_id": conv_id}))
@@ -187,7 +187,7 @@ class TestStreamCommit:
         conv_id = 'stream-ok-1'
         new_store.save_history(conv_id, [])
         answer = make_assess(1)
-        with patch('nbti.llm.requests.post',
+        with patch('nbti.llm.http_client.post',
                    return_value=MockStreamResponse([answer[:30], answer[30:]])):
             resp = client.post('/api/chat?stream=1', content_type='application/json',
                                data=json.dumps({"message": "开始测试", "conversation_id": conv_id}))
@@ -202,7 +202,7 @@ class TestStreamCommit:
         client, _, new_store = env
         conv_id = 'stream-res-1'
         new_store.save_history(conv_id, make_history(1))
-        with patch('nbti.llm.requests.post',
+        with patch('nbti.llm.http_client.post',
                    return_value=MockStreamResponse(['{"phase": "RESULT", "type": "NB'])):
             resp = client.post('/api/chat?stream=1', content_type='application/json',
                                data=json.dumps({"message": "[PHASE:RESULT]", "conversation_id": conv_id}))
@@ -216,7 +216,7 @@ class TestStreamCommit:
         conv_id = 'stream-res-2'
         new_store.save_history(conv_id, make_history(1))
         result = make_result()
-        with patch('nbti.llm.requests.post',
+        with patch('nbti.llm.http_client.post',
                    return_value=MockStreamResponse([result[:40], result[40:]])):
             resp = client.post('/api/chat?stream=1', content_type='application/json',
                                data=json.dumps({"message": "[PHASE:RESULT]", "conversation_id": conv_id}))
@@ -241,7 +241,7 @@ class TestTrimHistory:
             "choices": [{"message": {"content": make_assess(1)}}],  # 故意给错 q，验证题号纠正
             "usage": {"total_tokens": 10}
         }
-        with patch('nbti.app.requests.post', return_value=mock_resp) as mock_post:
+        with patch('nbti.app.http_client.post', return_value=mock_resp) as mock_post:
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": "pick A", "conversation_id": conv_id}))
         assert resp.status_code == 200
@@ -269,7 +269,7 @@ class TestTrimHistory:
             "choices": [{"message": {"content": make_assess(16)}}],
             "usage": {"total_tokens": 10}
         }
-        with patch('nbti.app.requests.post', return_value=mock_resp) as mock_post:
+        with patch('nbti.app.http_client.post', return_value=mock_resp) as mock_post:
             resp = client.post('/api/chat/preload', content_type='application/json',
                                data=json.dumps({"message": "pick A", "conversation_id": conv_id}))
         assert resp.status_code == 200

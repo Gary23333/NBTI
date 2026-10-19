@@ -67,14 +67,14 @@ class TestThemeValidation:
         """新会话携带非法 theme（不可哈希类型/未知 id）→ 回退 workplace，不 500，且不落库非法值"""
         client, _, new_store = env
         conv_id = 'theme-bad-new'
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(1))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(1))):
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": "开始测试", "conversation_id": conv_id,
                                                 "theme": bad_theme}))
         assert resp.status_code == 200
         assert new_store.get_theme(conv_id) == 'workplace'
         # 后续轮次从会话文件读 theme，同样不崩溃
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(2))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(2))):
             resp2 = client.post('/api/chat', content_type='application/json',
                                 data=json.dumps({"message": "A", "conversation_id": conv_id}))
         assert resp2.status_code == 200
@@ -82,7 +82,7 @@ class TestThemeValidation:
     def test_chat_valid_theme_preserved(self, env):
         """合法 theme 不受影响，正常落库"""
         client, _, new_store = env
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(1))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(1))):
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": "开始测试", "conversation_id": "theme-ok-1",
                                                 "theme": "animal"}))
@@ -97,7 +97,7 @@ class TestThemeValidation:
             {"role": "user", "content": "开始测试"},
             {"role": "assistant", "content": make_assess(1)}
         ], "theme": {"evil": 1}})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(2))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(2))):
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": "A", "conversation_id": conv_id}))
         assert resp.status_code == 200
@@ -105,7 +105,7 @@ class TestThemeValidation:
     def test_preload_invalid_theme_in_body_falls_back(self, env):
         """preload 无 conversation_id 时 body 里的非法 theme 回退 workplace，不 500"""
         client, _, _ = env
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(1))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(1))):
             resp = client.post('/api/chat/preload', content_type='application/json',
                                data=json.dumps({"message": "A", "conversation_id": "", "theme": ["x"]}))
         assert resp.status_code == 200
@@ -115,7 +115,7 @@ class TestThemeValidation:
         client, _, new_store = env
         conv_id = 'theme-bad-preload'
         new_store._write(conv_id, {"history": [], "theme": {"evil": 1}})
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(1))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(1))):
             resp = client.post('/api/chat/preload', content_type='application/json',
                                data=json.dumps({"message": "A", "conversation_id": conv_id}))
         assert resp.status_code == 200
@@ -146,7 +146,7 @@ class TestRequestBodyHardening:
     def test_chat_coerces_non_string_message(self, env):
         """message 为数字时强制转 str，正常走流程（曾因地日志切片 message[:50] 抛 TypeError）"""
         client, _, new_store = env
-        with patch('nbti.app.requests.post', return_value=_mock_llm_ok(make_assess(1))):
+        with patch('nbti.app.http_client.post', return_value=_mock_llm_ok(make_assess(1))):
             resp = client.post('/api/chat', content_type='application/json',
                                data=json.dumps({"message": 123, "conversation_id": "msg-type-1"}))
         assert resp.status_code == 200

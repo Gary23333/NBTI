@@ -1,5 +1,64 @@
 # Changelog
 
+## v5.0.0 - 工程化 / 全栈升级 (2026-10-20)
+
+### 🎊 重大更新 (MAJOR)
+
+- **可扩展模型供应商注册表** (`nbti/providers.py`)
+  - 将原先散落在 `nbti/llm.py` 中按 vendor 硬编码的分支逻辑，抽象为统一的 `Provider` 适配协议 + 注册表
+  - 内置 5 个适配器：`openai_compatible`（通用兜底）/ `doubao` / `deepseek` / `lmstudio` / `longcat`；未知或缺失 vendor 一律回退 `openai_compatible`
+  - 新增供应商只需实现 `Provider` 子类并 `register_provider()`，**无需改动 `app.py` / `llm.py`**
+  - `llm.py` 的 `build_thinking_params` / `get_chat_completions_url` / `build_response_format` 改为薄封装委托注册表，对外行为逐字保持
+  - lmstudio `/v1` 追加、longcat `/openai/v1/chat/completions`、deepseek `json_object`、doubao/longcat 返回 `{}`、lmstudio/openai_compatible 严格 `json_schema` 等差异全部收敛到适配器
+
+- **共享 httpx 连接池** (`nbti/http_client.py`)
+  - 模块级单例客户端 + keep-alive 连接复用与连接上限，削减单次 LLM 调用延迟
+  - `post()` 保持与 `requests.post` 兼容签名；流式返回 requests 风格包装对象（`iter_lines`/`text`/`encoding`）
+  - 装了 `h2` 时自动启用 HTTP/2，否则降级 HTTP/1.1（不报错）
+
+- **并行预载 + 首题预热** (`nbti/app.py`)
+  - 🆕 `POST /api/chat/preload/batch`：用线程池**并行**为每个答题分支生成草稿并逐分支落库，单分支失败隔离不影响其它分支
+  - 🆕 `POST /api/chat/warmup`：预生成第一题并以键 `开始测试` 存入预载草稿；随后 `/api/chat` 命中草稿直接提交，跳过重新生成
+
+- **缓存与存储解耦** (`nbti/cache.py` + `nbti/storage.py` + `nbti/conversation.py`)
+  - 🆕 进程内 TTL 缓存：prompt 构建 + 会话读缓存复用，可由 `cache_enabled` 配置驱动开关（关闭时 get 恒未命中、set 空操作）
+  - 🆕 存储后端抽象 `StorageBackend`：`FileStorage`（文件 JSON，与旧实现行为等价，附读缓存 + 写时失效）与可选 `RedisStorage`（WATCH/MULTI 乐观并发，支持多 worker）
+  - 🆕 `create_store` 工厂按环境变量/配置解析后端；redis 未安装/不可达时**安全回退**文件后端，绝不抛错
+  - `conversation.py` 变为存储门面，对外 API 完全不变
+
+- **前端 ES Module 模块化** (`js/`)
+  - 前端拆分为 11 个原生 ES Module（state / util / api / render / stream / preload / session / skeleton / warmup / fastmode / main）
+  - `index.html` 改用 `type="module"`；`app.js` 退化为薄壳引导；`sw.js` 缓存名升级 `nbti-v3`
+
+- **UX/UI 刷新**
+  - 骨架屏加载态、首题预热即时反馈、`fast_mode` 前端开关、并行预载状态提示
+
+### 🚀 功能增强
+
+- `GET /api/providers` — 返回注册表供应商元数据（供配置面板渲染下拉，不含任何密钥）
+- `/api/health` 新增可观测字段：`version` / `storage_backend` / `cache_enabled` / `fast_mode` / `providers_count`
+- 新增配置键：`cache_enabled` / `storage_backend` / `redis_url` / `fast_mode` / `phase_max_tokens`
+- `fast_mode`：assess/init 阶段关闭 thinking 并收敛 `max_tokens` 到 `phase_max_tokens` 阶段上限（默认关闭，不改变既有行为，绝不修改 profile）
+- 旧格式 `config.json`（`model_init/assess/result`）自动迁移；`llm_profiles` 未知 vendor 经 `normalize_vendor` 规范化；`load_config` 补齐新键且不破坏既有键
+
+### 📦 依赖与部署
+
+- `requirements.txt`：`redis` 明确为**可选**依赖（仅当 `storage_backend=redis` 时需要），不作为强制安装项
+- `gunicorn.conf.py`：新增 `NBTI_WORKERS` 环境变量覆盖（默认 1），并文档化「workers>1 需先启用 Redis 存储后端（`NBTI_STORAGE_BACKEND=redis`），否则文件后端会因多进程竞争丢数据」
+- `Dockerfile` / `docker-compose.yml`：补充并透传 `NBTI_STORAGE_BACKEND` / `NBTI_REDIS_URL` / `NBTI_ADMIN_TOKEN` / `NBTI_WORKERS` 说明；健康检查与默认单机行为不变
+
+### 🧪 测试
+
+- 测试用例总数 442 → 526
+- 🆕 `tests/test_providers.py` — 供应商适配器 URL / thinking / `response_format` 断言 + 注册表注册/查找/元数据行为
+- 🆕 `tests/test_cache.py` — TTL 命中/过期、开关关闭直算、set/invalidate/clear、并发写读线程安全
+- 🆕 `tests/test_storage_backends.py` — `FileStorage` 行为 + `RedisStorage`（内存假 client 注入）与文件后端**行为等价** + `create_store` 安全回退
+- 🆕 `tests/test_stream_contract.py` — SSE 事件序列（`first_token` / `chunk` / `done`）字段契约 + 残缺答案不入库 / 完整答案入库
+- 🆕 `tests/test_compat.py` — 旧格式 config.json 迁移 + 未知 vendor 规范化 + `load_config` 补齐新键且不破坏既有键
+- CI：`node --check` 步骤覆盖 `js/*.js` 全部模块（`for f in js/*.js; do node --check "$f"; done`）
+
+---
+
 ## v4.0.0 - 全民升级版 (2026-07-28)
 
 ### 🎊 重大更新 (MAJOR)

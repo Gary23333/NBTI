@@ -102,7 +102,7 @@ class TestApiIntegration:
         nbti_config.CONFIG_FILE = cls.orig_config_file
         shutil.rmtree(cls.tmpdir, ignore_errors=True)
 
-    @patch('nbti.llm.requests.post')
+    @patch('nbti.llm.http_client.post')
     def test_stream_chat_saves_history(self, mock_post):
         mock_post.return_value = MockResponse(200, {
             "choices": [{"message": {"content": make_assess(1, "NB")}}],
@@ -115,7 +115,7 @@ class TestApiIntegration:
         body = resp.get_data(as_text=True)
         assert 'event' in body and 'done' in body, f"Response body: {body[:200]}"
 
-    @patch('nbti.llm.requests.post')
+    @patch('nbti.llm.http_client.post')
     def test_stream_commits_next_dim_correctly(self, mock_post):
         mock_post.return_value = MockResponse(200, {
             "choices": [{"message": {"content": make_assess(1, "NB")}}],
@@ -136,8 +136,8 @@ class TestApiIntegration:
         data = json.loads(assistant_msgs[0]['content'])
         assert data['next_dim'] == 'NB'
 
-    @patch('nbti.app.requests.post')
-    @patch('nbti.llm.requests.post')
+    @patch('nbti.app.http_client.post')
+    @patch('nbti.llm.http_client.post')
     def test_preload_generates_draft(self, mock_llm_post, mock_app_post):
         mock_app_post.return_value = MockResponse(200, {
             "choices": [{"message": {"content": make_assess(1, "NB")}}],
@@ -158,8 +158,8 @@ class TestApiIntegration:
         assert parsed["q"] == 1, f"Expected q=1 (normalized from empty history), got {parsed['q']}"
         assert parsed["next_dim"] == "NB"
 
-    @patch('nbti.app.requests.post')
-    @patch('nbti.llm.requests.post')
+    @patch('nbti.app.http_client.post')
+    @patch('nbti.llm.http_client.post')
     def test_preload_commit_rejects_wrong_q(self, mock_llm_post, mock_app_post):
         from nbti import conversation
         conv_id = "intg-test-prel-2"
@@ -171,8 +171,8 @@ class TestApiIntegration:
             data=json.dumps({"message": "pick A", "conversation_id": conv_id}))
         assert resp.status_code == 409, f"Expected 409, got {resp.status_code}"
 
-    @patch('nbti.app.requests.post')
-    @patch('nbti.llm.requests.post')
+    @patch('nbti.app.http_client.post')
+    @patch('nbti.llm.http_client.post')
     def test_next_dim_rotation_across_questions(self, mock_llm_post, mock_app_post):
         from nbti import conversation
         conv_id = "intg-test-rot-1"

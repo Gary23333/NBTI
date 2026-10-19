@@ -1,10 +1,20 @@
 // NBTI Service Worker：静态资源 cache-first，/api/* 直连网络不缓存
-const CACHE_NAME = 'nbti-v1';
+const CACHE_NAME = 'nbti-v3';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/style.css',
-  '/app.js',
+  '/js/main.js',
+  '/js/api.js',
+  '/js/stream.js',
+  '/js/render.js',
+  '/js/preload.js',
+  '/js/session.js',
+  '/js/state.js',
+  '/js/util.js',
+  '/js/skeleton.js',
+  '/js/warmup.js',
+  '/js/fastmode.js',
   '/avatar-generator.js',
   '/radar-chart.js',
   '/share-poster.js',

@@ -4,20 +4,17 @@
 环境假设：
 - 后端 Flask: http://127.0.0.1:8081 （/api/* 无 LLM key 时会 401/500，必须用 page.route mock）
 - 前端静态: http://127.0.0.1:8080
-- 截图输出: /workspace/docs/screenshots/
+- 截图输出: 仓库内 docs/screenshots/（与运行时工作目录无关）
 """
 from __future__ import annotations
 
 import json
-import os
-import sys
 import time
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright, Route, Request, TimeoutError as PWTimeout
+from playwright.sync_api import sync_playwright, Route, Request
 
-OUTPUT_DIR = Path("/workspace/docs/screenshots")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "screenshots"
 
 FRONTEND = "http://127.0.0.1:8080"
 VIEWPORT = {"width": 1440, "height": 900}
@@ -153,10 +150,10 @@ def mock_route_for_chat(context, request_log: list, answers: dict, conversation_
             )
             return
 
-        if "/api/chat/stream" in url or url.endswith("/api/chat/stream") or "/api/chat/stream" in url:
+        if "/api/chat/stream" in url:
             # chat 流：先看 message 是否包含 [PHASE:RESULT] / [CAN_CONCLUDE:true]
             msg = body.get("message", "")
-            if "RESULT" in msg.upper() or "CAN_CONCLUDE" in msg.upper():
+            if "[PHASE:RESULT]" in msg.upper() or "[CAN_CONCLUDE:TRUE]" in msg.upper():
                 ans = answers.get("result", RESULT_ANSWER)
             else:
                 ans = answers.get("stream", ASSESS_ANSWER)
@@ -411,6 +408,7 @@ def shot_06_config_panel(p):
 # ------------------------------------------------------------------ #
 
 def main():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         shot_01_theme_selection(p)
         shot_02_test_in_progress(p)
@@ -422,3 +420,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

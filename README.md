@@ -159,7 +159,27 @@ export NBTI_ADMIN_TOKEN=your_admin_token   # config.html 写操作需要
 
 Python Flask + Vanilla JS + SVG + SSE + PWA，单仓单页，前后端双进程（API 密钥留在 127.0.0.1 后端，公网前端零密钥）。
 
-完整架构 / 安全模型 / 项目结构见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+开发步骤与项目结构见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+### 安全部署
+
+- 前端只公开明确列出的静态资源；`data/` 中的配置、会话和分享快照不会作为静态文件提供。
+- 后端监听 `127.0.0.1:8081`，前端通过 `/api/*` 代理访问。不要将后端端口直接暴露到公网。
+- 对外部署前设置强随机 `NBTI_ADMIN_TOKEN`。配置修改、重置和连接测试需要匹配的 `X-Admin-Token`；未设置令牌时，仅本机请求可管理。
+- 非管理员读取 `/api/config` 时，API Key 会掩码。不要提交 `data/config.json`、`.env`、真实密钥或管理令牌到仓库。
+- 聊天与创建分享接口按 IP 限流，`rate_limit_per_minute` 默认 30，设为 0 会关闭限流。生产环境建议通过 HTTPS 反向代理访问，并留意模型调用额度。
+
+### 更新展示截图
+
+启动前后端服务后，可使用演示数据重新生成 README 中的 6 张截图：
+
+```bash
+pip install playwright
+python -m playwright install chromium
+python scripts/capture_screenshots.py
+```
+
+输出保存到仓库内 `docs/screenshots/`。聊天和分享结果由脚本 mock；配置页会读取运行中的服务，截图前请使用示例配置并检查图片中没有敏感信息。
 
 ---
 
@@ -182,3 +202,4 @@ MIT — see [LICENSE](LICENSE).
   <br/>
   <sub>Your personality. Roasted. In 9 ways.</sub>
 </p>
+

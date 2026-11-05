@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import requests
-from flask import Flask, send_from_directory, send_file, request, Response
+from flask import Flask, send_from_directory, request, Response
 
 app = Flask(__name__)
 
@@ -15,8 +15,14 @@ STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 # 后端 API 地址
 BACKEND_URL = 'http://127.0.0.1:8081'
 
-# 允许的文件类型
-ALLOWED_EXTENSIONS = {'.html', '.css', '.js', '.svg', '.png', '.jpg', '.ico', '.json'}
+# 只公开前端实际使用的资源。不能按扩展名放行整个仓库：data/*.json
+# 包含 API 密钥、对话和分享快照，必须通过有权限控制的 API 访问。
+PUBLIC_FILES = frozenset({
+    'index.html', 'config.html', 'share.html', 'app.js',
+    'avatar-generator.js', 'compat-data.js', 'radar-chart.js',
+    'share-poster.js', 'sw.js', 'style.css', 'config.css',
+    'icon.svg', 'manifest.json',
+})
 
 # 分享 id 合法字符集（与后端 is_valid_conversation_id 一致：字母/数字/下划线/连字符，最长 64）
 _SHARE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
@@ -75,19 +81,9 @@ def proxy_api(path):
 
 @app.route('/<path:filename>')
 def serve_file(filename):
-    # 安全检查：只允许访问特定类型的文件
-    ext = os.path.splitext(filename)[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
+    if filename not in PUBLIC_FILES:
         return "Not Found", 404
-    
-    # 安全检查：防止路径遍历
-    if '..' in filename or filename.startswith('/'):
-        return "Forbidden", 403
-    
-    file_path = os.path.join(STATIC_DIR, filename)
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        return send_file(file_path)
-    return "Not Found", 404
+    return send_from_directory(STATIC_DIR, filename)
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
@@ -113,3 +109,4 @@ if __name__ == '__main__':
     print(f"⚠️  后端 API 请运行: python server.py")
     
     app.run(host='::', port=port, debug=False, threaded=True)
+

@@ -53,14 +53,17 @@ jobs:
       - name: Validate Compose and exclude private build inputs
         run: |
           docker compose config --quiet
-          mkdir -p data/conversations data/shares logs
+          mkdir -p data/conversations data/shares logs nbti/__pycache__ nbti/routes scripts
           printf 'build-context-sentinel' > data/config.json
           printf 'build-context-sentinel' > data/conversations/private.json
           printf 'build-context-sentinel' > data/shares/private.json
           printf 'build-context-sentinel' > logs/private.json
           printf 'BUILD_SENTINEL=true\n' > .env
+          for path in nbti/__pycache__/private.pyc nbti/private.secret nbti/routes/private.secret scripts/private.secret; do
+            printf 'build-context-sentinel' > "$path"
+          done
           docker build -t nbti:ci .
-          docker run --rm nbti:ci python -c "from pathlib import Path; forbidden = ['.env', '.git', 'data/config.json', 'data/conversations/private.json', 'data/shares/private.json', 'logs/private.json']; assert not any(Path('/app', path).exists() for path in forbidden); assert Path('/app/data/config.json.example').is_file()"
+          docker run --rm nbti:ci python -c "from pathlib import Path; forbidden = ['.env', '.git', 'data/config.json', 'data/conversations/private.json', 'data/shares/private.json', 'logs/private.json', 'nbti/__pycache__/private.pyc', 'nbti/private.secret', 'nbti/routes/private.secret', 'scripts/private.secret']; leaked = [path for path in forbidden if Path('/app', path).exists()]; assert not leaked, f'Private build inputs leaked: {leaked}'; required = ['data/config.json.example', 'nbti/app.py', 'nbti/routes/__init__.py', 'scripts/healthcheck.py']; missing = [path for path in required if not Path('/app', path).is_file()]; assert not missing, f'Required build inputs missing: {missing}'"
       - name: Exercise production startup and healthcheck
         run: |
           docker run -d --name nbti-ci -p 127.0.0.1:18080:8080 \

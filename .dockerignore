@@ -21,10 +21,14 @@
 !icon.svg
 !manifest.json
 !nbti/
+nbti/**
 !nbti/*.py
 !nbti/routes/
+nbti/routes/**
 !nbti/routes/*.py
 !scripts/
+scripts/**
 !scripts/healthcheck.py
 !data/
+data/**
 !data/config.json.example

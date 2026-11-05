@@ -6,6 +6,7 @@ import time
 import uuid
 import logging
 import threading
+import hmac
 import requests
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, send_from_directory, Response
@@ -26,6 +27,7 @@ from nbti.utils import (
 )
 from nbti.themes import get_themes, THEMES
 from nbti.prompts import get_prompt, get_prompt_presets, ALL_STYLES
+from nbti.limits import MAX_REQUEST_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +80,7 @@ def _sanitize_share_payload(data):
     for key in _SHARE_SCORE_KEYS:
         try:
             value = int(scores.get(key, 0))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             value = 0
         clean_scores[key] = max(-99, min(99, value))
     return clean_result, clean_scores
@@ -98,7 +100,10 @@ def _is_admin_request():
     """判定是否为管理员：携带正确的 X-Admin-Token；未配置 NBTI_ADMIN_TOKEN 时仅本机请求视为管理员"""
     admin_token = os.environ.get('NBTI_ADMIN_TOKEN', '')
     if admin_token:
-        return request.headers.get('X-Admin-Token', '') == admin_token
+        return hmac.compare_digest(
+            request.headers.get('X-Admin-Token', '').encode('utf-8'),
+            admin_token.encode('utf-8'),
+        )
     return _client_ip() in _LOCAL_IPS
 
 
@@ -208,7 +213,7 @@ def _cleanup_loop():
 
 
 def ensure_cleanup_thread():
-    """启动会话清理守护线程（幂等：进程内仅启动一次；gunicorn preload 下 fork 后需在 post_worker_init 再次调用）"""
+    """启动会话清理守护线程（进程内幂等；生产环境在 worker 内创建 app）。"""
     global _cleanup_thread_started
     with _cleanup_thread_lock:
         if _cleanup_thread_started:
@@ -220,6 +225,7 @@ def ensure_cleanup_thread():
 
 def create_app():
     app = Flask(__name__)
+    app.config['MAX_CONTENT_LENGTH'] = MAX_REQUEST_BYTES
 
     # 启动时清理一次过期会话（>24h）与过期分享快照（>30天），并启动后台定时清理线程（幂等）
     removed = store.cleanup_old(24)
@@ -240,7 +246,7 @@ def create_app():
             "active_preset": config.get("active_preset", ""),
             "themes_count": len(get_themes()),
             "styles_count": len(ALL_STYLES),
-            "version": "3.0.0-multitheme"
+            "version": "4.0.0"
         })
 
     # ---- Themes & Styles endpoints ----
@@ -587,10 +593,29 @@ def create_app():
             logger.warning(f"[CONFIG] 未授权的配置写请求 | ip={_client_ip()}")
             return _unauthorized()
         config = request.json
+        if not isinstance(config, dict):
+            return jsonify({"error": "Invalid configuration: expected a JSON object"}), 400
+        if "llm_profiles" in config and (
+            not isinstance(config['llm_profiles'], list)
+            or any(not isinstance(p, dict) for p in config['llm_profiles'])
+        ):
+            return jsonify({"error": "Invalid llm_profiles: expected a list of objects"}), 400
+        for profile in config.get('llm_profiles', []):
+            for key in ('name', 'vendor', 'base_url', 'model', 'api_key'):
+                if key in profile and not isinstance(profile[key], str):
+                    return jsonify({"error": f"Invalid profile {key}: expected a string"}), 400
+        for key in ('phase_profiles', 'prompt_presets', 'easter_eggs'):
+            if key in config and not isinstance(config[key], dict):
+                return jsonify({"error": f"Invalid {key}: expected an object"}), 400
+        for key in ('min_questions', 'max_questions', 'rate_limit_per_minute'):
+            if key in config and (
+                type(config[key]) is not int or config[key] < (0 if key == 'rate_limit_per_minute' else 1)
+            ):
+                return jsonify({"error": f"Invalid {key}: expected a nonnegative limit or positive question count"}), 400
         config = _migrate_old_config(config)
         for key, value in DEFAULT_CONFIG.items():
             if key not in config:
-                config[key] = value
+                config[key] = copy.deepcopy(value)
         save_config(config)
         logger.info(f"[CONFIG] Updated")
         return jsonify({"success": True})
@@ -601,7 +626,7 @@ def create_app():
             logger.warning(f"[CONFIG] 未授权的 test-connection 请求 | ip={_client_ip()}")
             return _unauthorized()
         data = request.json
-        if not data:
+        if not isinstance(data, dict) or not data:
             return jsonify({"error": "Missing profile data"}), 400
 
         base_url = data.get('base_url', '')
@@ -609,12 +634,19 @@ def create_app():
         model = data.get('model', '')
         vendor = data.get('vendor', '')
 
+        if any(not isinstance(value, str) for value in (base_url, api_key, model, vendor)):
+            return jsonify({"error": "Profile fields must be strings"}), 400
+
         if not base_url or not api_key:
             return jsonify({"error": "Missing base_url or api_key"}), 400
 
         # SSRF 防护：仅允许 http/https 且必须有 hostname（不封禁内网 IP，局域网 LM Studio 属合法用途）
-        parsed = urlparse(base_url)
-        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+        try:
+            parsed = urlparse(base_url)
+            valid_url = parsed.scheme in ('http', 'https') and parsed.hostname and parsed.port != 0
+        except ValueError:
+            valid_url = False
+        if not valid_url:
             logger.warning(f"[CONFIG] test-connection 非法 base_url: {base_url!r}")
             return jsonify({"error": "Invalid base_url: only http/https URLs are allowed"}), 400
 
@@ -686,7 +718,7 @@ def create_app():
             logger.warning(f"[SHARE] 非法快照结构 | ip={_client_ip()}")
             return jsonify({"error": "Invalid share payload"}), 400
         result, scores = parsed
-        share_id = uuid.uuid4().hex[:8]
+        share_id = uuid.uuid4().hex
         snapshot = {"result": result, "scores": scores, "created_at": int(time.time())}
         share_store.save_snapshot(share_id, snapshot)
         logger.info(f"[SHARE] 创建快照 | id={share_id} | type={result.get('type')}")
@@ -703,3 +735,4 @@ def create_app():
         return jsonify(snapshot)
 
     return app
+

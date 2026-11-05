@@ -6,8 +6,10 @@ import re
 import sys
 import requests
 from flask import Flask, send_from_directory, request, Response
+from nbti.limits import MAX_REQUEST_BYTES
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = MAX_REQUEST_BYTES
 
 # 静态文件目录
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +36,7 @@ def index():
 @app.route('/share/<sid>')
 def share_page(sid):
     """只读分享页：非法 id 直接 404，合法返回 share.html（数据由页面内 JS 调 /api/share/<id> 加载）"""
-    if not _SHARE_ID_RE.match(sid):
+    if not _SHARE_ID_RE.fullmatch(sid):
         return "Not Found", 404
     return send_from_directory(STATIC_DIR, 'share.html')
 
@@ -44,8 +46,14 @@ def proxy_api(path):
     url = f'{BACKEND_URL}/api/{path}'
     
     # 转发请求头：剔除 Host 和客户端自带的 X-Forwarded-For（防伪造）
+    hop_headers = {
+        'host', 'x-forwarded-for', 'connection', 'keep-alive',
+        'proxy-authenticate', 'proxy-authorization', 'te', 'trailer',
+        'transfer-encoding', 'upgrade', 'content-length',
+    }
+    hop_headers.update(h.strip().lower() for h in request.headers.get('Connection', '').split(','))
     headers = {key: value for key, value in request.headers
-               if key.lower() not in ('host', 'x-forwarded-for')}
+               if key.lower() not in hop_headers}
     # 由代理写入真实客户端 IP，供后端判定来源
     headers['X-Forwarded-For'] = request.remote_addr or ''
     
@@ -64,18 +72,29 @@ def proxy_api(path):
         )
         
         # 构建响应
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        excluded_headers = {
+            'content-encoding', 'content-length', 'transfer-encoding', 'connection',
+            'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'upgrade',
+        }
+        excluded_headers.update(h.strip().lower() for h in resp.headers.get('Connection', '').split(','))
         headers = [(name, value) for name, value in resp.raw.headers.items()
                    if name.lower() not in excluded_headers]
         
         # 流式响应
         if 'text/event-stream' in resp.headers.get('content-type', ''):
             def generate():
-                for chunk in resp.iter_content(chunk_size=None):
-                    yield chunk
-            return Response(generate(), resp.status_code, headers)
+                try:
+                    for chunk in resp.iter_content(chunk_size=None):
+                        yield chunk
+                finally:
+                    resp.close()
+            response = Response(generate(), resp.status_code, headers)
+            response.call_on_close(resp.close)
+            return response
         
-        return Response(resp.content, resp.status_code, headers)
+        content = resp.content
+        resp.close()
+        return Response(content, resp.status_code, headers)
     except requests.exceptions.RequestException as e:
         return {'error': f'Backend API error: {str(e)}'}, 502
 

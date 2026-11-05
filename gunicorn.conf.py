@@ -1,5 +1,5 @@
 # Server socket
-bind = "0.0.0.0:8080"
+bind = "127.0.0.1:8081"
 backlog = 2048
 
 # Worker processes
@@ -23,10 +23,6 @@ loglevel = "info"
 proc_name = "nbti"
 
 # Server mechanics
-preload_app = True
+# Create the app and its cleanup thread inside the worker, not before fork.
+preload_app = False
 
-
-def post_worker_init(worker):
-    """preload_app 下 create_app 在 master 执行，守护线程不随 fork 存活，需在 worker 内重启会话清理线程"""
-    from nbti.app import ensure_cleanup_thread
-    ensure_cleanup_thread()

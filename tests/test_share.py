@@ -52,7 +52,7 @@ class TestShareCreateAndGet:
         resp = _post_share(client, payload)
         assert resp.status_code == 200
         share_id = resp.get_json()['id']
-        assert isinstance(share_id, str) and len(share_id) == 8
+        assert isinstance(share_id, str) and len(share_id) == 32
         assert is_valid_conversation_id(share_id)
 
         resp = client.get(f'/api/share/{share_id}')
@@ -132,3 +132,4 @@ class TestShareRateLimit:
         codes = [_post_share(client, _make_payload()).status_code for _ in range(4)]
         assert codes[:2] == [200, 200]
         assert 429 in codes[2:]
+

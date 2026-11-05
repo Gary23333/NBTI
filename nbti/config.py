@@ -1,13 +1,22 @@
 import os
 import json
 import logging
+import copy
+import tempfile
 from nbti.prompts import get_prompt_presets
 
 logger = logging.getLogger(__name__)
 
-def get_api_key(profile_name, default=""):
+def get_api_key(profile_name, default="", vendor=""):
     env_key = f"NBTI_API_KEY_{profile_name.replace(' ', '_').replace('-', '_').upper()}"
-    return os.environ.get(env_key, default)
+    vendor_key = {"lmstudio": "LM_STUDIO"}.get(vendor, vendor.upper())
+    for name in (env_key, f"NBTI_API_KEY_{vendor_key}"):
+        value = os.environ.get(name)
+        # Compose supplies empty defaults. An empty value must not erase a key
+        # saved in config.json or prevent a vendor-wide fallback.
+        if value and value.strip():
+            return value
+    return default
 
 
 # 配置文件路径
@@ -40,7 +49,7 @@ DEFAULT_PROFILES = [
     {
         "name": "LM Studio Gemma E4B",
         "vendor": "lmstudio",
-        "base_url": "http://192.168.5.11:1234",
+        "base_url": "http://localhost:1234",
         "model": "google/gemma-4-e4b",
         "api_key": "lm-studio",
         "temperature": 0.55,
@@ -163,45 +172,60 @@ def _migrate_old_config(config):
 
 
 def load_config():
-    """加载配置，自动迁移旧格式"""
+    """Load an independent configuration; nonempty environment keys take priority."""
+    config = copy.deepcopy(DEFAULT_CONFIG)
     try:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
+                loaded = json.load(f)
+            if not isinstance(loaded, dict):
+                raise ValueError("config.json must contain a JSON object")
             # 自动迁移旧格式
-            config = _migrate_old_config(config)
+            loaded = _migrate_old_config(loaded)
+            profiles = loaded.get("llm_profiles", [])
+            if not isinstance(profiles, list) or any(not isinstance(p, dict) for p in profiles):
+                raise ValueError("llm_profiles must contain JSON objects")
+            config = loaded
             # 合并默认值
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:
-                    config[key] = value
-            # 确保所有 profile 有 json_mode
-            for p in config.get("llm_profiles", []):
-                if "json_mode" not in p:
-                    p["json_mode"] = {"enabled": True}
-            for p in config.get("llm_profiles", []):
-                if not p.get("api_key"):
-                    p["api_key"] = get_api_key(p.get("name", ""))
-            # Sync prompts from active_preset
-            active_preset = config.get("active_preset", "暴躁老油条")
-            presets = config.get("prompt_presets", {})
-            if active_preset in presets:
-                preset = presets[active_preset]
-                config["prompt_init"] = preset.get("prompt_init", config.get("prompt_init", ""))
-                config["prompt_assess"] = preset.get("prompt_assess", config.get("prompt_assess", ""))
-                config["prompt_result"] = preset.get("prompt_result", config.get("prompt_result", ""))
-            return config
-    except Exception as e:
-        print(f"⚠️ 配置加载失败: {e}")
-    return DEFAULT_CONFIG
+                    config[key] = copy.deepcopy(value)
+    except (OSError, ValueError, TypeError, AttributeError):
+        logger.warning("Could not load config.json; using defaults")
+        config = copy.deepcopy(DEFAULT_CONFIG)
+    for profile in config.get("llm_profiles", []):
+        profile.setdefault("json_mode", {"enabled": True})
+        profile["api_key"] = get_api_key(
+            str(profile.get("name", "")), profile.get("api_key", ""),
+            str(profile.get("vendor", "")),
+        )
+    active_preset = config.get("active_preset", "暴躁老油条")
+    presets = config.get("prompt_presets", {})
+    if isinstance(presets, dict) and isinstance(active_preset, str):
+        preset = presets.get(active_preset)
+        if isinstance(preset, dict):
+            for phase in ("init", "assess", "result"):
+                key = f"prompt_{phase}"
+                config[key] = preset.get(key, config.get(key, ""))
+    return config
 
 
 def save_config(config):
     """保存配置（原子写入）"""
-    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-    tmp_path = CONFIG_FILE + ".tmp"
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, CONFIG_FILE)
+    directory = os.path.dirname(CONFIG_FILE) or '.'
+    os.makedirs(directory, exist_ok=True)
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=directory,
+            prefix='.config-', suffix='.tmp', delete=False,
+        ) as f:
+            tmp_path = f.name
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, CONFIG_FILE)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def find_profile(config, profile_name):
@@ -237,3 +261,4 @@ def get_model_for_phase(config, phase):
     if profile:
         return profile.get("model", "")
     return "doubao-seed-2-0-lite-260428"
+

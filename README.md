@@ -101,7 +101,7 @@
 - 🖼️ **主题配色 Canvas 海报** —— 750×1200 一键分享
 - 💞 **跨主题 CP 合盘** —— 两个人格码进，CP 审判结果出
 - 📱 **PWA 可安装** —— 断点续测，进度写 localStorage
-- ☁️ **Docker 一键部署** —— docker-compose up 完事
+- ☁️ **Docker 部署** —— 双 Gunicorn 进程、健康检查与独立数据卷
 
 ---
 
@@ -113,11 +113,17 @@
 git clone https://github.com/Gary23333/NBTI.git
 cd NBTI
 cp data/config.json.example data/config.json   # 填入你的 API Key
-docker-compose up -d
+cp .env.example .env
+# 编辑 .env：必须设置强随机 NBTI_ADMIN_TOKEN；填入实际使用的厂商 API Key
+docker compose up -d --build
 open http://localhost:8080
 ```
 
+`data/` 和 `logs/` 通过数据卷保存，不打包进镜像。首次启动可用 `docker compose ps` 查看健康状态；前端或后端失败都会使健康检查失败。容器缺少管理令牌会拒绝启动，排查时使用 `docker compose logs`。
+
 ### 手动启动
+
+需要 Python 3.10+。以下 Flask 开发服务器适合本地调试；公网生产环境使用下方的 Gunicorn 入口。
 
 ```bash
 git clone https://github.com/Gary23333/NBTI.git
@@ -128,6 +134,24 @@ python server.py             # 终端 1：后端 API（127.0.0.1:8081）
 python frontend_server.py 8080  # 终端 2：前端代理（公网 8080）
 open http://localhost:8080
 ```
+
+### 生产启动（Linux / Bash 4.3+）
+
+```bash
+export NBTI_ADMIN_TOKEN=your_strong_random_token
+bash start.sh
+```
+
+入口同时运行前端 Gunicorn（8080）和仅回环地址可访问的后端 Gunicorn（8081）。任一进程退出会停止另一进程，并转发退出状态。后端使用单 worker、多线程；文件会话存储不支持多 worker 或多实例并发写入。
+
+### 测试
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+需要 Node.js 20+ 执行前端语法与纯逻辑测试。默认测试使用 mock，不需要服务或真实 API Key。`pytest.ini` 排除了需要运行中服务、浏览器或真实模型的手工脚本，详见 [CONTRIBUTING.md](CONTRIBUTING.md#running-tests)。
 
 ---
 
@@ -141,6 +165,10 @@ export NBTI_API_KEY_DEEPSEEK_V4_FLASH=your_key
 export NBTI_API_KEY_DOUBAO=your_key
 export NBTI_ADMIN_TOKEN=your_admin_token   # config.html 写操作需要
 ```
+
+非空环境变量优先于配置文件，空值不会清除配置文件中的密钥。优先查找 profile 名称对应的变量（空格、连字符转下划线并大写），然后查找厂商变量，如 `NBTI_API_KEY_DOUBAO`。Docker Compose 会读取 `.env`；手动运行 Python 或 `start.sh` 时需自行导出变量。
+
+LM Studio 默认地址是 `http://localhost:1234`。在 Docker 内 `localhost` 指容器本身，连接宿主机或局域网模型时应在配置中填写该部署实际可访问的地址。
 
 **LLM Profiles** —— 每个 profile 是一组 vendor / endpoint / model / api_key / temperature / json_mode 配置，可按阶段（init / assess / result）分配不同模型。支持 4 厂商：
 
@@ -165,9 +193,10 @@ Python Flask + Vanilla JS + SVG + SSE + PWA，单仓单页，前后端双进程�
 
 - 前端只公开明确列出的静态资源；`data/` 中的配置、会话和分享快照不会作为静态文件提供。
 - 后端监听 `127.0.0.1:8081`，前端通过 `/api/*` 代理访问。不要将后端端口直接暴露到公网。
-- 对外部署前设置强随机 `NBTI_ADMIN_TOKEN`。配置修改、重置和连接测试需要匹配的 `X-Admin-Token`；未设置令牌时，仅本机请求可管理。
+- 对外部署前设置强随机 `NBTI_ADMIN_TOKEN`。Docker / `start.sh` 强制要求令牌；配置修改、重置和连接测试需要匹配的 `X-Admin-Token`。本地开发服务器未设置令牌时，仅本机请求可管理。
 - 非管理员读取 `/api/config` 时，API Key 会掩码。不要提交 `data/config.json`、`.env`、真实密钥或管理令牌到仓库。
 - 聊天与创建分享接口按 IP 限流，`rate_limit_per_minute` 默认 30，设为 0 会关闭限流。生产环境建议通过 HTTPS 反向代理访问，并留意模型调用额度。
+- 前后端均限制请求体为 1 MiB。新分享链接使用完整随机 UUID，旧的 8 位分享链接仍可读取。
 
 ### 更新展示截图
 

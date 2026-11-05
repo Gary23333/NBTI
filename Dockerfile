@@ -16,8 +16,9 @@ RUN mkdir -p data/conversations logs && chmod +x start.sh
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD python3 -c "import requests; requests.get('http://localhost:8081/api/health', timeout=5)" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["python3", "scripts/healthcheck.py"]
 
 # Start both servers
 CMD ["bash", "start.sh"]
+

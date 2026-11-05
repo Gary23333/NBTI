@@ -5,6 +5,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       - name: Check frontend JS syntax
         run: |
           node --check app.js
@@ -35,10 +42,44 @@ jobs:
           node --check sw.js
       - name: Run tests
         run: |
-          # tests/e2e：Playwright 手工端到端测试，需人工启动完整环境，CI 不跑
-          # tests/test_deepseek.py：模块级请求 localhost:8081 实跑服务，CI 无该服务，保留 ignore
-          # tests/test_preload.py：依赖 localhost:8080 实跑服务，CI 无该服务，保留 ignore
-          pytest tests/ -v --tb=short \
-            --ignore=tests/e2e \
-            --ignore=tests/test_deepseek.py \
-            --ignore=tests/test_preload.py
+          bash -n start.sh
+          python -m compileall -q nbti scripts server.py frontend_server.py
+          python -m pytest -v --tb=short
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and exclude private build inputs
+        run: |
+          docker compose config --quiet
+          mkdir -p data/conversations data/shares logs
+          printf 'build-context-sentinel' > data/config.json
+          printf 'build-context-sentinel' > data/conversations/private.json
+          printf 'build-context-sentinel' > data/shares/private.json
+          printf 'build-context-sentinel' > logs/private.json
+          printf 'BUILD_SENTINEL=true\n' > .env
+          docker build -t nbti:ci .
+          docker run --rm nbti:ci python -c "from pathlib import Path; forbidden = ['.env', '.git', 'data/config.json', 'data/conversations/private.json', 'data/shares/private.json', 'logs/private.json']; assert not any(Path('/app', path).exists() for path in forbidden); assert Path('/app/data/config.json.example').is_file()"
+      - name: Exercise production startup and healthcheck
+        run: |
+          docker run -d --name nbti-ci -p 127.0.0.1:18080:8080 \
+            -e NBTI_ADMIN_TOKEN=ci-test-token \
+            --health-interval=1s --health-retries=10 nbti:ci
+          for attempt in $(seq 1 45); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' nbti-ci)
+            if [ "$status" = healthy ]; then break; fi
+            if [ "$status" = unhealthy ]; then docker logs nbti-ci; exit 1; fi
+            sleep 1
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' nbti-ci)" = healthy
+          curl --fail --silent http://127.0.0.1:18080/api/health
+          curl --fail --silent http://127.0.0.1:18080/ > /dev/null
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/data/config.json)" = 404
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18080/api/config)" = 401
+      - name: Collect logs and stop container
+        if: always()
+        run: |
+          docker logs nbti-ci 2>/dev/null || true
+          docker rm -f nbti-ci 2>/dev/null || true
+

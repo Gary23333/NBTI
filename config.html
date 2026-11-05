@@ -500,7 +500,7 @@ function onProfileNameChange(idx, newName) {
 const VENDOR_DEFAULTS = {
   doubao: { base_url: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-seed-2-0-mini-260428' },
   deepseek: { base_url: 'https://api.deepseek.com', model: 'deepseek-chat' },
-  lmstudio: { base_url: 'http://192.168.5.22:1234', model: 'google/gemma-4-e4b' },
+  lmstudio: { base_url: 'http://localhost:1234', model: 'google/gemma-4-e4b' },
   longcat: { base_url: 'https://api.longcat.chat', model: 'LongCat-Flash-Chat' }
 };
 
@@ -593,7 +593,7 @@ function addProfile() {
   profiles.push({
     name: name,
     vendor: 'lmstudio',
-    base_url: 'http://192.168.5.22:1234',
+    base_url: 'http://localhost:1234',
     model: 'google/gemma-4-e4b',
     api_key: 'lm-studio',
     temperature: 0.55,
@@ -749,3 +749,4 @@ loadConfig();
 </script>
 </body>
 </html>
+

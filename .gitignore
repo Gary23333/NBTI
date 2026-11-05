@@ -106,9 +106,6 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
-# --- Docker ---
-.dockerignore
-
 # --- 备份文件 ---
 *.sql.gz
 *.tar.gz

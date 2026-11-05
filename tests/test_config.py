@@ -5,7 +5,7 @@ import json
 import os
 
 # 确保能找到 server.py
-sys.path.insert(0, '/Users/guanzizheng/Movies/项目/NBGZ')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import server
 
 print("=" * 60)
@@ -161,3 +161,4 @@ else:
 print("\n" + "=" * 60)
 print("✅ 全部测试通过！")
 print("=" * 60)
+

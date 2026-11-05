@@ -53,22 +53,11 @@ if __name__ == '__main__':
     if not os.path.exists(CONFIG_FILE):
         save_config(DEFAULT_CONFIG)
 
-    import socket
-    ipv6_addr = None
-    try:
-        s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        s.connect(("2001:4860:4860::8888", 80))
-        ipv6_addr = s.getsockname()[0]
-        s.close()
-    except:
-        pass
-
-    print("NBTI Backend API v2.0")
-    print(f"  API: http://[::1]:8081/api")
-    print(f"  Health: http://[::1]:8081/api/health")
-    if ipv6_addr:
-        print(f"  IPv6: http://[{ipv6_addr}]:8081/api")
-    print(f"  Config: http://[::1]:8081/api/config")
+    print("NBTI Backend API v4.0 (local development)")
+    print("  API: http://127.0.0.1:8081/api")
+    print("  Health: http://127.0.0.1:8081/api/health")
+    print("  Config: http://127.0.0.1:8081/api/config")
     print(f"  Static files: python frontend_server.py 8080")
 
     app.run(host='127.0.0.1', port=8081, debug=False, threaded=True)
+

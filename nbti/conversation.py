@@ -13,7 +13,7 @@ _CONV_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
 def is_valid_conversation_id(cid):
     """校验 conversation_id 是否合法（防路径穿越）"""
-    return isinstance(cid, str) and bool(_CONV_ID_RE.match(cid))
+    return isinstance(cid, str) and bool(_CONV_ID_RE.fullmatch(cid))
 
 
 class ConversationStore:
@@ -129,3 +129,4 @@ class ConversationStore:
 
 
 store = ConversationStore(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'conversations'))
+

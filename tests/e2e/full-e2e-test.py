@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import time
 import json
+import os
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
 BASE_URL = "http://127.0.0.1:8080"
-SHOT_DIR = "/Users/guanzizheng/Movies/项目/NBGZ/tests/e2e/screenshots"
+SHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
 
 MOCK_ASSESS_1 = json.dumps({
     "phase": "ASSESS", "q": 1, "nb": 0, "bh": 0, "tf": 0, "ip": 0,
@@ -271,3 +272,4 @@ if __name__ == "__main__":
     print(f"时间: {datetime.now().isoformat()}")
     print("=" * 60)
     run()
+
